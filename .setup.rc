@@ -1,0 +1,5 @@
+
+export DEFAULT_PUBURL="https://k8scenario.github.io/static/k8scenarii"
+export DEFAULT_PUBDIR="$HOME//z/TOOLS/k8scenario.github.io"
+export K8SCENARIO_BINARY=k8scenario
+
