@@ -1,0 +1,7 @@
+k8scenario.go.*
+Dockerfile
+bin/
+reference/
+SCENARII/*.zip*
+*/*.zip*
+*.zip*
