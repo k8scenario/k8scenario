@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: critical
+  name: critical
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: critical
+  template:
+    metadata:
+      labels:
+        run: critical
+    spec:
+      containers:
+      - image: mjbright/ckad-demo:alpine1
+        args:
+        - /bin/sh
+        - -c
+        - "sleep 10 # I think we should sleep for 1 hour ..."
+        name: critical
+        ports:
+        - containerPort: 80

@@ -1,0 +1,1 @@
+Typo on label selector 'run: ckad-dem0' on service

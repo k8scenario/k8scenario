@@ -1,0 +1,1 @@
+This scenario deploys a bad (non-existent TAG) image

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: monitoring
+  labels:
+      run: ckad-demo
+spec:
+  restartPolicy: OnFailure
+  containers:
+  - image: mjbright/ckad-demo:alpine1
+    name: ckad-demo
+    command: ["/bin/sh"]
+    args: ["-c", "while true; do echo $date; sleep 1; done"]
+

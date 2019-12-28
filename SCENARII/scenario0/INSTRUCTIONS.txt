@@ -1,0 +1,6 @@
+# hint1:
+
+Just launch a Pod (and/or a Deployment/ReplicaSet) with a name starting with 'basictest', e.g. basictest-xxxx in the namespace called k8scenario (created for you)
+
+# subjects:
+- pods, namespace
