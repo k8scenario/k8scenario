@@ -24,6 +24,7 @@ function build {
 
     set -x
     sed -i.bak \
+	    -e "s/__K8SCENARIO_VERSION__.*=.*/__K8SCENARIO_VERSION__=\"$K8SCENARIO_BINARY\"/g" \
 	    -e "s/__DATE_VERSION__.*=.*/__DATE_VERSION__=\"$DATE_VERSION\"/g" \
 	    -e "s?__DEFAULT_PUBURL__.*=.*?__DEFAULT_PUBURL__=\"$DEFAULT_PUBURL\"?g" \
 	    k8scenario.go 
@@ -121,6 +122,8 @@ function run_k8scenario {
 
 [ ! -f .setup.rc ] && die "No .setup.rc in $PWD"
 . .setup.rc
+
+echo "BUILDING $K8SCENARIO_BINARY for <$DEFAULT_PUBURL>"
 
 [ -z "$DEFAULT_PUBURL" ] && die "\$DEFAULT_PUBURL not set in .setup.rc"
 [ -z "$DEFAULT_PUBDIR" ] && die "\$DEFAULT_PUBDIR not set in .setup.rc"
