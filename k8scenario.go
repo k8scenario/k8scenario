@@ -28,7 +28,8 @@ import (
 )
 
 const (
-    __DATE_VERSION__="2019-Dec-28_20h33m29"
+    __DATE_VERSION__="2020-Jan-09_07h54m25"
+    __K8SCENARIO_VERSION__="k8scenario.public"
 
     // Default url used to download scenarii
     __DEFAULT_PUBURL__="https://k8scenario.github.io/static/k8scenarii"
@@ -64,6 +65,7 @@ var (
     dbg       = false
 
     namespace = flag.String("namespace", "k8scenario", "The namespace to use (all)")
+    keepNamespace = flag.Bool("keepns", false, "Don't delete/re-create the namespace")
     scenario  = flag.Int("scenario", 1, "k8s scenario to run (default: 1)")
 
     serverUrl = flag.String("server", pubUrl, "Get scenarii from specified server")
@@ -295,8 +297,49 @@ func install_scenario(scenario int) (string, string) {
     return install_scenario_zip(zipFile)
 }
 
+func recreate_namespace(scenarioStr string) int {
+    pipeCmd := "kubectl get namespace | awk '/^k8scenario/ { printf \"namespace/%s \", $1; }'"
+    namespaces := myexec_pipe(pipeCmd)
+    if namespaces != "" {
+        //for index, element := range namespaces { }
+        fmt.Println( "Deleting existing: " + namespaces)
+        fmt.Println( myexec("kubectl delete " + namespaces) )
+    }
+
+    cmd := ""
+    cmd = fmt.Sprintf("kubectl create ns %s", *namespace)
+    fmt.Println( cmd )
+    fmt.Println( myexec(cmd) )
+
+    cmd = fmt.Sprintf("kubectl label ns %s scenario=%s", *namespace, scenarioStr)
+    fmt.Println( cmd )
+    fmt.Println( myexec(cmd) )
+
+    cmd = fmt.Sprintf("kubectl get ns %s --show-labels", *namespace)
+    fmt.Println( cmd )
+    fmt.Println( myexec(cmd) )
+
+    return 0
+}
+
+func getScenarioIntFromZipFileName(zipFile string) (int, error) {
+    scenarioStrNum := getScenarioStrNumFromZipFileName(zipFile)
+    return strconv.Atoi(scenarioStrNum)
+}
+
+func getScenarioStrNumFromZipFileName(zipFile string) string {
+    fileName := zipFile[ 9 + strings.LastIndex( zipFile, "/scenario" ): ]
+    return fileName[ : len(fileName)-4]
+}
+
 func install_scenario_zip(zipFile string) (string, string) {
-    fmt.Println("Installing scenario ... into namespace " + *namespace)
+    //scenarioStr = strconv.Itoa(scenario)
+    //fileName := zipFile[ 9 + strings.LastIndex( zipFile, "/scenario" ): ]
+    //scenarioStr := fileName[ : len(fileName)-4]
+    scenarioStr := getScenarioStrNumFromZipFileName(zipFile)
+
+    fmt.Println("Installing scenario" + scenarioStr +
+                " ... into namespace " + *namespace)
     // Open a zip archive for reading.
     r, err := zip.OpenReader(zipFile)
     if err != nil {
@@ -312,16 +355,11 @@ func install_scenario_zip(zipFile string) (string, string) {
         debug(fmt.Sprintf("File: %s:\n", f.Name))
     }
 
-    pipeCmd := "kubectl get namespace | awk '/^k8scenario/ { printf \"namespace/%s \", $1; }'"
-    namespaces := myexec_pipe(pipeCmd)
-    if namespaces != "" {
-        fmt.Println( "Deleting existing: " + namespaces)
-        fmt.Println( myexec("kubectl delete " + namespaces) )
+    if !*keepNamespace {
+        _ = recreate_namespace(scenarioStr)
+    } else {
+        fmt.Println( "Keeping existing namespace: " + *namespace)
     }
-    //for index, element := range namespaces { }
-
-    fmt.Println( myexec(fmt.Sprintf("kubectl create namespace %s", *namespace)) )
-    fmt.Println( myexec_pipe("kubectl get namespace | grep ^k8scenario") )
 
     INSTRUCTIONS := ""
     CHECK_SCRIPT := ""
@@ -465,7 +503,7 @@ func menu_loop() {
             check_script, instructions := install_scenario(scenario)
 
             // Only show instructions once very 10 loops ...
-            if loop_num % 10 != 0 {
+            if (loop_num % 10) != 0 {
                 instructions = ""
             }
             loop_check(check_script, instructions, scenario)
@@ -532,7 +570,7 @@ func main() {
 
     flag.Parse()
 
-    fmt.Println("Version: " + __DATE_VERSION__)
+    fmt.Println("Version: " + __K8SCENARIO_VERSION__ + "/" + __DATE_VERSION__)
     if version {
         os.Exit(0)
     }
@@ -548,7 +586,9 @@ func main() {
     }*/
 
     if *zipFile != "" {
-        _, _ = install_scenario_zip(*zipFile)
+        check_script, instructions := install_scenario_zip(*zipFile)
+        scenario,_ := getScenarioIntFromZipFileName(*zipFile)
+        loop_check(check_script, instructions, scenario)
         os.Exit(0)
     }
 
