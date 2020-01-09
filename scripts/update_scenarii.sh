@@ -144,7 +144,7 @@ while [ ! -z "$1" ]; do
 	#    ./SCENARII/local_server.sh
         -l|--local) URL_BASE=http://127.0.0.1:9000;;
 
-        -u|--up*) WEB_UPLOAD=1;;
+        -u|--up*|--pub|-pub)       WEB_UPLOAD=1;;
         -c|--check) check_zips;    RET=$?; echo "Exiting ... $RET"; exit $RET;;
         -i|--index) rebuild_index; RET=$?; echo "Exiting ... $RET"; exit $RET;;
 
