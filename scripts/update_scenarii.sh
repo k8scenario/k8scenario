@@ -31,25 +31,35 @@ create_zips() {
         # Skip if not scenario[0-9]+:
         [ ${scenario%[0-9]} = $scenario ] && continue
 
-        [ ! -d $scenario ] && die "Expected directory <$scenario> in $SCENARII_DIR"
-
-	#set -x
-        [ -f ${scenario}.zip ] && rm -f ${scenario}.zip
-        zip -r9 ${scenario}.zip ${scenario}/ -x '*/EXCLUDE_*' 2>&1 >/dev/null
-
-        [ ! -f ${scenario}.zip ] && die "Failed to create zip <${scenario}.zip>"
-        [ ! -d $URL_SCENARII_DIR ] && mkdir -p $URL_SCENARII_DIR
-        [ ! -d $URL_BIN_DIR ]      && mkdir -p $URL_BIN_DIR
-        cp -a ${scenario}.zip index.list $URL_SCENARII_DIR/
-        cp -a ../bin/$K8SCENARIO_BINARY $URL_BIN_DIR/k8scenario
-	#set +x
+        create_zip $scenario
     done
+
     ls -altr *.zip
 
     #cd -
     cd $BASE_DIR
     echo "[$PWD] Creating zips ... DONE"
     echo "Zips copied to $PUB_URL_DIR/"
+}
+
+create_zip() {
+    [ ! -d $scenario ] && die "Expected directory <$scenario> in $SCENARII_DIR"
+
+    cp -a TEMPLATE/functions.rc $scenario/.functions.rc
+
+#set -x
+    [ -f ${scenario}.zip ] && rm -f ${scenario}.zip
+    zip -r9 ${scenario}.zip ${scenario}/ -x '*/EXCLUDE_*' 2>&1 >/dev/null
+
+    # Remove - don't want it in the .git archive
+    rm $scenario/.functions.rc
+
+    [ ! -f ${scenario}.zip ] && die "Failed to create zip <${scenario}.zip>"
+    [ ! -d $URL_SCENARII_DIR ] && mkdir -p $URL_SCENARII_DIR
+    [ ! -d $URL_BIN_DIR ]      && mkdir -p $URL_BIN_DIR
+    cp -a ${scenario}.zip index.list $URL_SCENARII_DIR/
+    cp -a ../bin/$K8SCENARIO_BINARY $URL_BIN_DIR/k8scenario
+#set +x
 }
 
 upload_zips() {
