@@ -14,6 +14,43 @@ die() {
     exit 1
 }
 
+CREATE_AND_RUN_TMP_SCRIPT() {
+    ACTION_SCRIPT=$1; shift
+    ACTION=$1;        shift
+
+    [ ! -x "$ACTION_SCRIPT" ] && die "[$PWD] No such '$ACTION' script <$ACTION_SCRIPT>"
+
+    TMP_SH=tmp/${ACTION}_scenario.sh
+    cat > $TMP_SH << EOF
+#!/bin/bash
+
+$SET_X
+
+export NS=$NS
+
+EOF
+
+    cat SCENARII/TEMPLATE/functions.rc $ACTION_SCRIPT >> $TMP_SH
+    chmod +x $TMP_SH
+
+    echo "$TMP_SH"
+    $TMP_SH
+    echo "==> returned exit code $?"
+
+    [ "$ACTION" = "setup" ] && { kubectl get all -n $NS; }
+
+    [ -z "$SCENARIO" ] && return
+    echo "SCENARIO=<$SCENARIO>"
+
+    [ "$ACTION" = "fix" ] && {
+        echo
+        echo "==== Relaunching script in check node:"
+
+        echo "$0 --check $SCENARIO"
+        $0 --check $SCENARIO
+    }
+}
+
 SET_X=""
 
 while [ ! -z "$1" ]; do
@@ -34,7 +71,13 @@ while [ ! -z "$1" ]; do
     [0-9]*)
         SCENARIO=$1
 	;;
-    *) die "Unknown argument <$1>"
+    *)
+        [ ! -f "$1" ] && die "Unknown argument <$1>"
+
+	ACTION_SCRIPT="$1"
+        [ -z "$ACTION" ] && ACTION="check"
+        CREATE_AND_RUN_TMP_SCRIPT $ACTION_SCRIPT $ACTION
+	exit $?
         ;;
   esac
   shift
@@ -49,34 +92,5 @@ done
 
 ACTION_SCRIPT="SCENARII/scenario$SCENARIO/$ACTION_SCRIPT"
 
-[ ! -x "$ACTION_SCRIPT" ] && die "[$PWD] No such '$ACTION' script <$ACTION_SCRIPT>"
-
-TMP_SH=tmp/${ACTION}_scenario.sh
-cat > $TMP_SH << EOF
-#!/bin/bash
-
-$SET_X
-
-export NS=$NS
-
-EOF
-
-cat SCENARII/TEMPLATE/functions.rc $ACTION_SCRIPT >> $TMP_SH
-chmod +x $TMP_SH
-
-echo "$TMP_SH"
-$TMP_SH
-echo "==> returned exit code $?"
-
-[ "$ACTION" = "setup" ] && {
-    kubectl get all -n $NS
-}
-
-[ "$ACTION" = "fix" ] && {
-    echo
-    echo "==== Relaunching script in check node:"
-
-    echo "$0 --check $SCENARIO"
-    $0 --check $SCENARIO
-}
+CREATE_AND_RUN_TMP_SCRIPT $ACTION_SCRIPT $ACTION
 
