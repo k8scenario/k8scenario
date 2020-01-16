@@ -28,16 +28,16 @@ import (
 )
 
 const (
-    __DATE_VERSION__="2020-Jan-09_07h54m25"
+    __DATE_VERSION__="2020-Jan-16_00h27m13"
     __K8SCENARIO_VERSION__="k8scenario.public"
 
     // Default url used to download scenarii
     __DEFAULT_PUBURL__="https://k8scenario.github.io/static/k8scenarii"
 
-    // time to wait sleeping if running in cluster ????
+    // time to wait sleeping if running in cluster
     INCLUSTER_SLEEP_SECS=3600
 
-    CHECK_FIXED_SLEEP_SECS=10
+    CHECK_FIXED_SLEEP_SECS=5
 
     escape             = "\x1b"
     colour_me_black    = escape + "[0;30m"
@@ -55,6 +55,8 @@ const (
 var (
     pubUrl = __DEFAULT_PUBURL__
 
+    tempfile = "/tmp/temp"
+
     // Globally accessible so we can easily append it to os/exec environment:
     kubeconfig = ""
 
@@ -65,7 +67,6 @@ var (
     dbg       = false
 
     namespace = flag.String("namespace", "k8scenario", "The namespace to use (all)")
-    keepNamespace = flag.Bool("keepns", false, "Don't delete/re-create the namespace")
     scenario  = flag.Int("scenario", 1, "k8s scenario to run (default: 1)")
 
     serverUrl = flag.String("server", pubUrl, "Get scenarii from specified server")
@@ -119,35 +120,54 @@ func DownloadFile(filepath string, url string) error {
     return err
 }
 
-func myexec(command string) string {
-    return _myexec(false, command)
+func silent_exec(command string) (string,int) {
+    showOP := false
+    assert := false
+    return _exec(showOP, assert, command)
 }
 
-func assert_myexec(command string) string {
-    return _myexec(true, command)
+func myexec(command string) (string,int) {
+    showOP := true
+    assert := false
+    return _exec(showOP, assert, command)
 }
 
-func assert_myexec_pipe(pipeCmd string) string {
-    //return _myexec_pipe( true, "/bin/sh", "-c", "'" + pipeCmd + "'" )
-    return _myexec_pipe( true, "/bin/sh", "-c", pipeCmd )
-}
-func myexec_pipe(pipeCmd string) string {
-    //return _myexec_pipe( false, "/bin/sh", "-c", "'" + pipeCmd + "'" )
-    return _myexec_pipe( false, "/bin/sh", "-c", pipeCmd )
+func assert_exec(command string) (string,int) {
+    showOP := true
+    assert := true
+    return _exec(showOP, assert, command)
 }
 
-func _myexec_pipe(assert bool, pipeCmd ...string) string {
+func silent_exec_pipe(pipeCmd string) (string,int) {
+    showOP := false
+    assert := false
+    return _exec_pipe( showOP, assert, "/bin/sh", "-c", pipeCmd )
+}
+func assert_exec_pipe(pipeCmd string) (string,int) {
+    showOP := true
+    assert := true
+    return _exec_pipe( showOP, assert, "/bin/sh", "-c", pipeCmd )
+}
+func exec_pipe(pipeCmd string) (string,int) {
+    showOP := true
+    assert := false
+    return _exec_pipe( showOP, assert, "/bin/sh", "-c", pipeCmd )
+}
+
+func _exec_pipe(showOP bool, assert bool, pipeCmd ...string) (string, int) {
     debug(fmt.Sprintf("---- %s\n", strings.Join(pipeCmd[2:], " ")))
     //fmt.Println("---- " + strings.Join(pipeCmd[2:]))
     //fmt.Printf("---- %s\n", pipeCmd)
 
     head := pipeCmd[0]
     parts := pipeCmd[1:len(pipeCmd)]
-    //out, err := exec.Command(head,parts...).Output()
-    //out, err := exec.Command(pipeCmd[0], pipeCmd[1:]).Output()
-    //cmd := exec.Command(head,parts...)
     out, err := exec.Command(head,parts...).Output()
-    //out, err := exec.Command(pipeCmd[0], pipeCmd[1:]).Output()
+
+    //TEMP:
+    //fmt.Println( fmt.Sprintf("---- %s\n", strings.Join(pipeCmd[2:], " ")) )
+    //if err != nil { fmt.Println("ERRORS=<" + err.Error() + ">") }
+    //fmt.Println("OUTPUT=<" + string(out) + ">")
+
     if err != nil {
         msg := fmt.Sprintf("exec.Command(PIPE) returned error with %s\n", err.Error())
         if assert {
@@ -157,31 +177,10 @@ func _myexec_pipe(assert bool, pipeCmd ...string) string {
         }
     }
 
-    /*
-    // if kubeconfig != "" { cmd.Env = append(os.Environ(), "KUBECONFIG=" + kubeconfig) }
-
-    out, err := cmd.Output()
-    if err != nil {
-        msg := fmt.Sprintf("exec.Command(PIPE) returned error with %s\n", err.Error())
-        if assert {
-            log.Fatalf(msg)
-        } else {
-            debug(msg)
-        }
-    }
-    */
-
-    return return_out_exit_status(err,  out)
+    return return_out_exit_status(showOP, err,  out)
 }
 
-func return_out_exit_status(err error,  out []byte) string {
-    /*
-    if msg, ok := err.(*exec.ExitError); ok { // there is error code
-        os.Exit(msg.Sys().(syscall.WaitStatus).ExitStatus())
-    } else {
-        os.Exit(0)
-    }
-    */
+func return_out_exit_status(showOP bool, err error,  output []byte) (string, int) {
 
     exit_status := ""
     exit_status_int := 0
@@ -189,12 +188,11 @@ func return_out_exit_status(err error,  out []byte) string {
     /*if err := cmd.Wait(); err != nil {}*/
     if err != nil {
         if exiterr, ok := err.(*exec.ExitError); ok {
+
             // The program has exited with an exit code != 0 (Unix & Windows)
             if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
                 exit_status_int = status.ExitStatus()
                 exit_status = fmt.Sprintf("exit status: %d", exit_status_int)
-		//log.Println(exit_status)
-                //exit_status = "\n" + exit_status
             }
         } else {
             log.Fatalf("cmd.Wait: %v", err)
@@ -207,21 +205,28 @@ func return_out_exit_status(err error,  out []byte) string {
     EXIT_COLOUR:=colour_me_normal
     if exit_status_int != 0 { EXIT_COLOUR=colour_me_red }
     if exit_status != ""    { exit_status = " - " + exit_status }
-    fmt.Printf("%s%s%s%s%s%s\n",
-        colour_me_yellow, string(out), colour_me_normal,
-        EXIT_COLOUR, exit_status, colour_me_normal)
-    return string(out) + exit_status
+
+    if showOP {
+        //fmt.Printf("\n%s%s%s%s%s%s",
+
+        fmt.Printf("%s%s%s", EXIT_COLOUR, exit_status, colour_me_normal)
+
+	if len(output) != 0 {
+            fmt.Printf("\n%s%s%s", colour_me_yellow, string(output), colour_me_normal)
+        }
+    }
+    return string(output) + exit_status, exit_status_int
 }
 
-func _myexec(assert bool, command string) string {
+func _exec(showOP bool, assert bool, command string) (string, int) {
     debug("---- " + command + "\n")
 
     parts := strings.Fields(command)
     head := parts[0]
     parts = parts[1:len(parts)]
     //cmd := exec.Command(head,parts...)
-    out, err := exec.Command(head,parts...).Output()
-    //out, err := exec.Command(pipeCmd[0], pipeCmd[1:]).Output()
+    output, err := exec.Command(head,parts...).Output()
+    //output, err := exec.Command(pipeCmd[0], pipeCmd[1:]).Output()
     if err != nil {
         msg := fmt.Sprintf("exec.Command(PIPE) returned error with %s\n", err.Error())
         if assert {
@@ -231,19 +236,10 @@ func _myexec(assert bool, command string) string {
         }
     }
 
-    /*
-    //if kubeconfig != "" { cmd.Env = append(os.Environ(), "KUBECONFIG=" + kubeconfig) }
-    out, err := cmd.Output()
-    if err != nil {
-        msg := fmt.Sprintf("exec.Command() returned error with %s\n", err.Error())
-        if assert {
-            log.Fatalf(msg)
-        } else {
-            debug(msg)
-        }
-    }*/
-
-    return return_out_exit_status(err,  out)
+    //if showOP {
+        //output = []byte{} // empty byte array
+    //}
+    return return_out_exit_status(showOP, err,  output)
 }
 
 func assertNoErr(err error) {
@@ -266,7 +262,7 @@ func isFile(filename string) bool {
     return !info.IsDir()
 }
 
-func install_scenario(scenario int) (string, string) {
+func install_scenario(scenario int) (string, string, string) {
     //debug(fmt.Sprintf("Downloading scenario %d ...\n", scenario))
     fmt.Sprintf("Downloading scenario %d ...\n", scenario)
 
@@ -294,52 +290,94 @@ func install_scenario(scenario int) (string, string) {
         log.Fatalf("No such file: %s", zipFile)
     }
 
-    return install_scenario_zip(zipFile)
+    return install_scenario_zip(zipFile, scenario)
 }
 
-func recreate_namespace(scenarioStr string) int {
-    pipeCmd := "kubectl get namespace | awk '/^k8scenario/ { printf \"namespace/%s \", $1; }'"
-    namespaces := myexec_pipe(pipeCmd)
-    if namespaces != "" {
-        //for index, element := range namespaces { }
-        fmt.Println( "Deleting existing: " + namespaces)
-        fmt.Println( myexec("kubectl delete " + namespaces) )
+func readFileFromReader(f *zip.File) (string) {
+    //fmt.Printf("Contents of %s:\n", f.Name)
+    rc, err := f.Open()
+    if err != nil {
+        fmt.Println("Open error")
+        log.Fatal(err)
     }
 
-    cmd := ""
-    cmd = fmt.Sprintf("kubectl create ns %s", *namespace)
-    fmt.Println( cmd )
-    fmt.Println( myexec(cmd) )
+    tmpfh, err := os.Create(tempfile)
+    //_, _ = io.CopyN(tmpfh, rc, 2000)
+    _, _ = io.CopyN(tmpfh, rc, 10000)
+    //if err != nil {
+        // Dont' print EOF - fmt.Println(err)
+        //fmt.Println("CopyN error")
+        //log.Fatal(err)
+    //}
+    tmpfh.Close()
 
-    cmd = fmt.Sprintf("kubectl label ns %s scenario=%s", *namespace, scenarioStr)
-    fmt.Println( cmd )
-    fmt.Println( myexec(cmd) )
+    bytes, readf_err := ioutil.ReadFile(tempfile)
 
-    cmd = fmt.Sprintf("kubectl get ns %s --show-labels", *namespace)
-    fmt.Println( cmd )
-    fmt.Println( myexec(cmd) )
+    if readf_err != nil {
+        fmt.Println(f.Name + ": " + readf_err.Error())
+    }
 
-    return 0
+    str := string(bytes)
+    debug(str)
+
+    rc.Close()
+
+    //return str, readf_err
+    return str
 }
 
-func getScenarioIntFromZipFileName(zipFile string) (int, error) {
-    scenarioStrNum := getScenarioStrNumFromZipFileName(zipFile)
-    return strconv.Atoi(scenarioStrNum)
+func write_check_script(check_script string, extra string) (string) {
+
+    //CHECK_SCRIPTbytes, readf_err := ioutil.ReadFile(tempfile)
+    //if readf_err != nil {
+        //fmt.Println("check_script: " + readf_err.Error())
+    //}
+
+    CHECK_SCRIPT := extra + string( check_script )
+    debug(CHECK_SCRIPT)
+    /*
+    fmt.Printf("Len(extra)=%d\n", len(extra))
+    fmt.Printf("Len(check_script)=%d\n", len(check_script))
+    fmt.Println("======")
+    fmt.Printf("Len(CHECK_SCRIPT)=%d\n", len(CHECK_SCRIPT))
+    */
+
+    // TODO: invoke SETUP_SCRIPT once with '-pre' argument - HERE
+    return CHECK_SCRIPT
 }
 
-func getScenarioStrNumFromZipFileName(zipFile string) string {
-    fileName := zipFile[ 9 + strings.LastIndex( zipFile, "/scenario" ): ]
-    return fileName[ : len(fileName)-4]
+func apply_setup_script(setup_script string, extra string) {
+    SETUP_SCRIPT := extra + setup_script
+
+
+    /*
+    fmt.Printf("Len(extra)=%d\n", len(DEBUG_SET_X))
+    fmt.Printf("Len(setup_script)=%d\n", len(setup_script))
+    fmt.Println("======")
+    fmt.Printf("Len(SETUP_SCRIPT)=%d\n", len(SETUP_SCRIPT))
+    */
+
+    // TODO: invoke script once with '-pre' argument - HERE
+    _, _ = exec_pipe(SETUP_SCRIPT)
+
+    // TODO: invoke SETUP_SCRIPT once with '-post' argument - LATER
 }
 
-func install_scenario_zip(zipFile string) (string, string) {
-    //scenarioStr = strconv.Itoa(scenario)
-    //fileName := zipFile[ 9 + strings.LastIndex( zipFile, "/scenario" ): ]
-    //scenarioStr := fileName[ : len(fileName)-4]
-    scenarioStr := getScenarioStrNumFromZipFileName(zipFile)
+func writeFile(filename string, content string) {
+    f, err := os.Create(tempfile)
+    if err != nil {
+        fmt.Println(tempfile + ": " + err.Error())
+    }
+    f.WriteString(content)
+    //defer f.Close()
+    f.Sync()
+    f.Close()
+}
 
-    fmt.Println("Installing scenario" + scenarioStr +
-                " ... into namespace " + *namespace)
+func install_scenario_zip(zipFile string, scenario int) (string, string, string) {
+    scenario_name := fmt.Sprintf("scenario%d", scenario)
+    showVersion()
+    fmt.Printf("Installing %s ... into namespace %s\n", scenario_name, *namespace)
     // Open a zip archive for reading.
     r, err := zip.OpenReader(zipFile)
     if err != nil {
@@ -349,93 +387,99 @@ func install_scenario_zip(zipFile string) (string, string) {
 
     // Iterate through the files in the archive,
     // printing some of their contents.
-    for _, f := range r.File {
-        strlen := len(f.Name)
-        if f.Name[strlen-1:] == "/" { continue; }
-        debug(fmt.Sprintf("File: %s:\n", f.Name))
+    //for _, f := range r.File {
+        //strlen := len(f.Name)
+        //if f.Name[strlen-1:] == "/" { continue; }
+        //debug(fmt.Sprintf("File: %s:\n", f.Name))
+    //}
+
+    pipeCmd := "kubectl get namespace | awk '/^k8scenario/ { printf \"namespace/%s \", $1; }'"
+    namespaces, _ := exec_pipe(pipeCmd)
+    if namespaces != "" {
+        fmt.Println( "Deleting existing: " + namespaces)
+        silent_exec( fmt.Sprintf("kubectl label --overwrite namespace %s status=deleting scenario=%s", *namespace, scenario_name) )
+        silent_exec("kubectl delete " + namespaces)
     }
 
-    if !*keepNamespace {
-        _ = recreate_namespace(scenarioStr)
-    } else {
-        fmt.Println( "Keeping existing namespace: " + *namespace)
-    }
-
+    fmt.Println( "(Re)creating namespace: " + *namespace)
+    silent_exec("kubectl create namespace " + *namespace)
+    exec_pipe( fmt.Sprintf("kubectl get namespace %s --no-headers", *namespace) )
     INSTRUCTIONS := ""
+    CHALLENGE_TYPE := "task"
+    SETUP_SCRIPT := ""
     CHECK_SCRIPT := ""
+    FUNCTIONS_RC := ""
+    EXPORT_NAMESPACE := "export NS=" + *namespace + "\n"
 
+    // empty array of strings:
+    YAML_FILES := []string{}
+    YAML_FILE_NAMES := []string{}
+
+    file_loop := 0
     for _, f := range r.File {
+        file_loop = file_loop  + 1
         strlen := len(f.Name)
+
         if f.Name[strlen-1:] == "/" { continue; }
-        //fmt.Printf("Contents of %s:\n", f.Name)
-        rc, err := f.Open()
-        if err != nil {
-            fmt.Print("Open error")
-            log.Fatal(err)
-        }
 
-        tempfile := "/tmp/temp"
-        tmpfh, err := os.Create(tempfile)
+        // GATHER FUNCTIONS_RC:
+        if strings.Contains(f.Name, ".functions.rc") { FUNCTIONS_RC = readFileFromReader(f) }
 
-        //_, err = io.CopyN(os.Stdout, rc, 100)
-        _, err = io.CopyN(tmpfh, rc, 2000)
-        if err != nil {
-            // Dont' print EOF - fmt.Println(err)
-            fmt.Print()
-            //fmt.Println("CopyN error")
-            //log.Fatal(err)
-        }
-        tmpfh.Close()
+        // GATHER SETUP_SCRIPT:
+        if strings.Contains(f.Name, "SETUP_SCENARIO.sh") { SETUP_SCRIPT = readFileFromReader(f) }
 
         // GATHER CHECK_SCRIPT:
-        if strings.Contains(f.Name, "check.sh") {
-            CHECK_SCRIPTbytes, errchk := ioutil.ReadFile(tempfile)
-            if errchk != nil {
-                fmt.Println(errchk)
-            }
-
-            CHECK_SCRIPT = string( CHECK_SCRIPTbytes )
-	    debug(CHECK_SCRIPT)
-        }
+        if strings.Contains(f.Name, "CHECK_SCENARIO.sh") { CHECK_SCRIPT = readFileFromReader(f) }
 
         // GATHER INSTRUCTIONS:
-        //fmt.Println( myexec("ls -al " + tempfile) )
-        if strings.Contains(f.Name, "INSTRUCTIONS.txt") {
-            INSTRUCTIONSbytes, errins := ioutil.ReadFile(tempfile)
-            if errins != nil {
-                fmt.Println(errins)
-            }
+        if strings.Contains(f.Name, "INSTRUCTIONS.txt") { INSTRUCTIONS = readFileFromReader(f) }
 
-            INSTRUCTIONS = string( INSTRUCTIONSbytes )
+        // GATHER CHALLENGE_TYPE:
+        if strings.Contains(f.Name, "CHALLENGE_TYPE.txt") { CHALLENGE_TYPE = readFileFromReader(f) }
+
+        if CaseInsensitiveContains(f.Name, "yaml") || CaseInsensitiveContains(f.Name, "yml")   {
+            yaml_content   := readFileFromReader(f)
+            YAML_FILE_NAMES = append(YAML_FILE_NAMES, f.Name)
+            YAML_FILES      = append(YAML_FILES, yaml_content)
         }
 
-        // APPLY YAML:
-        if CaseInsensitiveContains(f.Name, "yaml") ||
-           CaseInsensitiveContains(f.Name, "yml")   {
-            fmt.Println( myexec_pipe( fmt.Sprintf("kubectl apply -n %s -f %s | grep -v ^$\n", *namespace, tempfile)))
-        }
+        silent_exec( "rm " + tempfile )
+    }
 
-        // TODO: here also - to show scenario status ??
+    CHALLENGE_TYPE = strings.TrimSuffix( CHALLENGE_TYPE, "\n")
+                   apply_setup_script(SETUP_SCRIPT, EXPORT_NAMESPACE + FUNCTIONS_RC + "\n")
+    CHECK_SCRIPT = write_check_script(CHECK_SCRIPT, EXPORT_NAMESPACE + FUNCTIONS_RC + "\n")
 
-        rc.Close()
-        fmt.Println()
+    for file_idx := 0 ; file_idx < len(YAML_FILES); file_idx++ {
+        filename := YAML_FILE_NAMES[file_idx]
+        content  := YAML_FILES[file_idx]
+
+        writeFile(tempfile, content)
+
+        applyCmd := fmt.Sprintf("kubectl apply -n %s -f %s", *namespace, tempfile)
+
+        //fmt.Println( applyCmd )
+        path_elems := strings.Split(filename, "/")
+        filename   = path_elems[len(path_elems)-1]
+        yaml_name := strings.Split(filename, ".")[1] // 1.<yaml_name>.yaml
+
+        fmt.Printf("Applying '%s'\n", yaml_name)
+
+        full_cmd := fmt.Sprintf("%s | grep -v ^$\n", applyCmd)
+        //fmt.Printf("Command '%s'\n", full_cmd)
+        exec_pipe( full_cmd )
     }
 
     debug("======== " + zipFile + "\n")
-    fmt.Println(INSTRUCTIONS)
+    silent_exec( fmt.Sprintf("kubectl label namespace %s status=readytofix scenario=%s", *namespace, scenario_name) )
 
-    return CHECK_SCRIPT, INSTRUCTIONS
+    return CHECK_SCRIPT, INSTRUCTIONS, CHALLENGE_TYPE
 }
 
 func menu_loop() {
     listUrl := fmt.Sprintf("%s/index.list", *serverUrl)
     listFile := "/tmp/index.list"
 
-    if verbose {
-        debug(fmt.Sprintf("Downloading %s\n", listUrl))
-    } else {
-        fmt.Printf("Downloading index.list\n")
-    }
 
     if strings.Contains(*serverUrl, "file:") {
         listFile = listUrl[ 8: ]
@@ -473,10 +517,7 @@ func menu_loop() {
 
     reader := bufio.NewReader(os.Stdin)
 
-    //for_menu_loop:
-    loop_num := 0
     for true {
-        loop_num = loop_num + 1
         //fmt.Println()
         fmt.Print("Available scenarii: " )
         for _, eachline := range txtlines {
@@ -500,18 +541,14 @@ func menu_loop() {
             scenario = -1
             //break for_menu_loop;
         } else {
-            check_script, instructions := install_scenario(scenario)
+            check_script, instructions, challenge_type := install_scenario(scenario)
 
-            // Only show instructions once very 10 loops ...
-            if (loop_num % 10) != 0 {
-                instructions = ""
-            }
-            loop_check(check_script, instructions, scenario)
+            loop_check(check_script, instructions, challenge_type, scenario)
         }
     }
 }
 
-func loop_check(check_script string, instructions string, scenario int) {
+func loop_check(check_script string, instructions string, challenge_type string, scenario int) {
     scenarioName := fmt.Sprintf("scenario%d", scenario)
 
     if check_script == "" {
@@ -520,27 +557,45 @@ func loop_check(check_script string, instructions string, scenario int) {
         return
     }
 
+    prompt := ""
+    switch challenge_type {
+        case "task": prompt = "task incomplete"
+        case "fix": prompt = "fix incomplete"
+        default: prompt = "**** incomplete"
+    }
+
+    //for_check_loop:
+    loop_num := 0
     for true {
-        //op := myexec(check_script)
-        op := myexec_pipe(check_script)
-        // fmt.Println(op)
-        //op = myexec_pipe(check_script + " 2>&1 | tee /tmp/check_script." + string(scenario) + ".txt")
-        if ! strings.Contains(op, "exit status") {
-            well_done := fmt.Sprintf("---- %s[%s]%s %sWELL DONE !!!!%s - The scenario appears to be fixed !!!!\n",
-	                             colour_me_yellow, scenarioName, colour_me_normal,
-	                             colour_me_green, colour_me_normal)
+        loop_num = loop_num + 1
+
+        // Only show instructions once very 10 loops ...
+        if (loop_num % 10) == 1 {
+            fmt.Printf("\n%s", instructions)
+        }
+
+        //fmt.Printf("%sexit_code=%d%s", colour_me_yellow, err_code, colour_me_normal)
+        //fmt.Printf("%soutput=%s%s", colour_me_yellow, output, colour_me_normal)
+        //fmt.Printf("%s%s%s", colour_me_yellow, instructions, colour_me_normal)
+        sleep(CHECK_FIXED_SLEEP_SECS, 
+	      fmt.Sprintf("\n%s[%s]%s - %s%s%s",
+	                  colour_me_yellow, scenarioName, colour_me_normal,
+	                  colour_me_red, prompt, colour_me_normal) )
+
+        // XXXX output, err_code := silent_exec_pipe(check_script)
+        //output, err_code := exec_pipe(check_script)
+        _, err_code := exec_pipe(check_script)
+        //output := exec_pipe(check_script)
+        //if ! strings.Contains(output, "exit status") {
+        if err_code == 0 {
+            //well_done := fmt.Sprintf("\n%s%s%s---- %s[%s]%s %sWELL DONE !!!!%s - The scenario appears to be fixed !!!!\n",
+                             //colour_me_yellow, output, colour_me_normal,
+            well_done := fmt.Sprintf("\n---- %s[%s]%s %sWELL DONE !!!!%s - The scenario appears to be fixed !!!!\n",
+                             colour_me_yellow, scenarioName, colour_me_normal,
+                             colour_me_green, colour_me_normal)
             fmt.Println(well_done)
             return
         }
-
-        //fmt.Println()
-        //fmt.Println("---- Cluster appears broken:")
-        //fmt.Println(instructions)
-	fmt.Printf("%s%s%s", colour_me_yellow, instructions, colour_me_normal)
-        sleep(CHECK_FIXED_SLEEP_SECS, 
-	      fmt.Sprintf("%s[%s]%s - %scluster broken%s",
-	                  colour_me_yellow, scenarioName, colour_me_normal,
-	                  colour_me_red, colour_me_normal) )
     }
 }
 
@@ -558,8 +613,12 @@ func sleep(secs int, msg string) {
 
 func debug(msg string) {
     if dbg {
-        fmt.Printf("%sDEBUG:%s%s", colour_me_cyan, msg, colour_me_normal)
+        fmt.Printf("%sDEBUG:%s<<%s>>DEBUG\n", colour_me_cyan, msg, colour_me_normal)
     }
+}
+
+func showVersion() {
+    fmt.Println("Version: " + __K8SCENARIO_VERSION__ + "/" + __DATE_VERSION__)
 }
 
 func main() {
@@ -570,25 +629,32 @@ func main() {
 
     flag.Parse()
 
-    fmt.Println("Version: " + __K8SCENARIO_VERSION__ + "/" + __DATE_VERSION__)
+    showVersion()
     if version {
         os.Exit(0)
     }
-    fmt.Println("serverUrl: " + *serverUrl)
+    if dbg {
+        fmt.Println("serverUrl: " + *serverUrl)
+    }
 
     if len(os.Args) == 1 {
          menu=true
     }
 
-    /*if len(os.Args) > 1 && os.Args[1] == "--version" {
-        fmt.Println("gotcha !!")
-        os.Exit(0)
-    }*/
-
     if *zipFile != "" {
-        check_script, instructions := install_scenario_zip(*zipFile)
-        scenario,_ := getScenarioIntFromZipFileName(*zipFile)
-        loop_check(check_script, instructions, scenario)
+        path_elems := strings.Split(*zipFile, "/scenario")
+	zipFileNum := path_elems[ len(path_elems)-1 ]
+	zipFileNum  = strings.TrimSuffix(zipFileNum, ".zip")
+
+	var err error
+	*scenario, err = strconv.Atoi(zipFileNum)
+        if err != nil {
+            panic(err.Error())
+	}
+
+        check_script, instructions, challenge_type := install_scenario_zip(*zipFile, *scenario)
+
+        loop_check(check_script, instructions, challenge_type, *scenario)
         os.Exit(0)
     }
 
@@ -627,14 +693,8 @@ func main() {
         menu_loop()
     }
 
-    _, _ = install_scenario(*scenario)
+    _, _, _ = install_scenario(*scenario)
 
-    /* type introspection:
-    fmt.Println(reflect.TypeOf(rc))
-    typerc := reflect.TypeOf(rc)
-    for i:=0; i<typerc.NumMethod(); i++ {
-        fmt.Print(typerc.Method(i))
-    }*/
 
     if incluster {
         sleep(INCLUSTER_SLEEP_SECS, "in cluster")
