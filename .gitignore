@@ -1,7 +1,25 @@
-k8scenario.go.*
-Dockerfile
-bin/
-reference/
-SCENARII/*.zip*
-*/*.zip*
+##-------- Relative to repo top-level directory: -----------------
+/PREPARATION.md
+/k8scenario.go.*
+/bin/
+/tmp/
+/UNUSED/
+/reference/
+/TOSORT/
+/OLD/
+/BAK/
+/2019-KubeConNA-AWS_Debugging_Tutorial/
+/scripts.OLD/
+
+# For now:
+/KIND/create_kind_3.sh
+/KIND/kind_3.yaml
+
+##-------- Files at any level: ----------------------------------
 *.zip*
+.functions.rc
+
+# Ignore vim temp files:
+.*.sw*
+.*~
+
