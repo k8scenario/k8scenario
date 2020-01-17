@@ -28,7 +28,7 @@ import (
 )
 
 const (
-    __DATE_VERSION__="2020-Jan-16_00h27m13"
+    __DATE_VERSION__="2020-Jan-16_10h19m22"
     __K8SCENARIO_VERSION__="k8scenario.public"
 
     // Default url used to download scenarii
@@ -346,7 +346,11 @@ func write_check_script(check_script string, extra string) (string) {
     return CHECK_SCRIPT
 }
 
-func apply_setup_script(setup_script string, extra string) {
+func apply_setup_script(setup_script string, extra string, prepost_yaml string) {
+    if setup_script == "" {
+        return
+    }
+
     SETUP_SCRIPT := extra + setup_script
 
 
@@ -358,7 +362,15 @@ func apply_setup_script(setup_script string, extra string) {
     */
 
     // TODO: invoke script once with '-pre' argument - HERE
-    _, _ = exec_pipe(SETUP_SCRIPT)
+    if prepost_yaml == "--pre-yaml" {
+        set_args := "\nset -- --pre-yaml\n\n"
+        _, _ = exec_pipe(set_args + SETUP_SCRIPT)
+    } else if prepost_yaml == "--post-yaml" {
+        set_args := "\nset -- --post-yaml\n\n"
+        _, _ = exec_pipe(set_args + SETUP_SCRIPT)
+    } else {
+        _, _ = exec_pipe(SETUP_SCRIPT)
+    }
 
     // TODO: invoke SETUP_SCRIPT once with '-post' argument - LATER
 }
@@ -447,7 +459,7 @@ func install_scenario_zip(zipFile string, scenario int) (string, string, string)
     }
 
     CHALLENGE_TYPE = strings.TrimSuffix( CHALLENGE_TYPE, "\n")
-                   apply_setup_script(SETUP_SCRIPT, EXPORT_NAMESPACE + FUNCTIONS_RC + "\n")
+    apply_setup_script(SETUP_SCRIPT, EXPORT_NAMESPACE + FUNCTIONS_RC + "\n", "--pre-yaml")
     CHECK_SCRIPT = write_check_script(CHECK_SCRIPT, EXPORT_NAMESPACE + FUNCTIONS_RC + "\n")
 
     for file_idx := 0 ; file_idx < len(YAML_FILES); file_idx++ {
@@ -469,6 +481,7 @@ func install_scenario_zip(zipFile string, scenario int) (string, string, string)
         //fmt.Printf("Command '%s'\n", full_cmd)
         exec_pipe( full_cmd )
     }
+    apply_setup_script(SETUP_SCRIPT, EXPORT_NAMESPACE + FUNCTIONS_RC + "\n", "--post-yaml")
 
     debug("======== " + zipFile + "\n")
     silent_exec( fmt.Sprintf("kubectl label namespace %s status=readytofix scenario=%s", *namespace, scenario_name) )
