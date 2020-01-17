@@ -19,6 +19,7 @@
 OPTS=""
 TEST_ALL=""
 FIX_ALL=0
+DO_REGRESSION_TESTS=0
 
 #SET_X=""
 
@@ -35,47 +36,34 @@ press() {
     [ "$DUMMY" = "Q" ] && exit 0
 }
 
-while [ ! -z "$1" ]; do
-    #echo case $1
-    case $1 in
-        [0-9]*)
-            scenario=scenario${1}
-            SCENARIO_ZIP=SCENARII/${scenario}.zip
-            #set -x
-            [ -f ${SCENARIO_ZIP} ] && rm ${SCENARIO_ZIP}
-            cp -a SCENARII/TEMPLATE/functions.rc SCENARII/${scenario}/.functions.rc
-            zip -r9 ${SCENARIO_ZIP} SCENARII/${scenario}/ -x '*/EXCLUDE_*'
-            #set +x
+RUN_REGRESSION_TESTS() {
+    NS=k8scenario
 
-	    # Remove again - don't want to archive
-            rm SCENARII/${scenario}/.functions.rc
-            ;;
+    for SCENARIO in $TEST_ALL; do
+        echo "Test scenario $SCENARIO - regenerating zip file"
+        REBUILD_SCENARIO_ZIP $SCENARIO
+	ls -altr SCENARII/scenario${SCENARIO}.zip
 
-        #-x) SET_X="set -x";;
-        -d|--debug) OPTS+="--debug" ;;
-        -k|--keepns) OPTS+="--keepns" ;;
+	echo; press "more SCENARII/scenario${SCENARIO}/EXCLUDE_SOLUTION.txt"
+	more SCENARII/scenario${SCENARIO}/EXCLUDE_SOLUTION.txt
 
-	ALL_IGNORE) ;;
-        -f|--fix) FIX_ALL=1;;
-        -a|--all) TEST_ALL="ALL";
-		[ ! -z "$2" ] && {
-		    shift
-		    [ "$1" == "-f" ] && die "Use option -f before -a"
-		    [ "$1" == "--fix" ] && die "Use option --fix before -a"
-		    TEST_ALL="$*"
-		    set -- ALL_IGNORE
-	        };;
+	echo; press "About to setup scenario $SCENARIO [will (delete/re)create namespace $NS]"
+        kubectl get ns | grep -q $NS && kubectl delete ns $NS
+        kubectl create ns $NS
 
-        *)
-            [ -f "$1" ] && { SCENARIO_ZIP=$1; break; }
-    
-            [ -d "$1" ] && die "TODO: dir handling"
-    
-            die "Unknown option <$1>"
-        ;;
-    esac
-    shift
-done
+	# TODO: pre/post setup !!
+        scripts/setup_check_fix_scenario.sh --setup $SCENARIO
+
+	echo; press "About to check-broken scenario $SCENARIO"
+        scripts/setup_check_fix_scenario.sh --check-broken $SCENARIO
+
+	echo; press "About to fix scenario $SCENARIO"
+        scripts/setup_check_fix_scenario.sh --fix $SCENARIO
+
+	echo; press "About to check-fixed scenario $SCENARIO"
+        scripts/setup_check_fix_scenario.sh --check $SCENARIO
+    done
+}
 
 GET_ALL_SCENARII() {
     TEST_ALL=$(ls -1d SCENARII/scenario*/ | sed -e 's/.*scenario//' -e 's?/??')
@@ -127,8 +115,62 @@ FIX_SCENARII() {
     rm tmp/.tofix
 }
 
+REBUILD_SCENARIO_ZIP() {
+    scenario=scenario${1}
+    SCENARIO_ZIP=SCENARII/${scenario}.zip
+    #set -x
+    [ -f ${SCENARIO_ZIP} ] && rm ${SCENARIO_ZIP}
+    cp -a SCENARII/TEMPLATE/functions.rc SCENARII/${scenario}/.functions.rc
+    zip -r9 ${SCENARIO_ZIP} SCENARII/${scenario}/ -x '*/EXCLUDE_*'
+    #set +x
+
+    # Remove again - don't want to archive
+    rm SCENARII/${scenario}/.functions.rc
+}
+
+while [ ! -z "$1" ]; do
+    #echo case $1
+    case $1 in
+        [0-9]*)
+            REBUILD_SCENARIO_ZIP $1
+            ;;
+
+        #-x) SET_X="set -x";;
+        -d|--debug) OPTS+="--debug" ;;
+        -k|--keepns) OPTS+="--keepns" ;;
+
+        -r|-rt|-nrt|--rt|--nrt)
+		TEST_ALL="ALL";
+		DO_REGRESSION_TESTS=1
+		[ ! -z "$2" ] && { shift; TEST_ALL="$*"; set -- DUMMY_ARG; }
+		;;
+
+        -f|--fix) FIX_ALL=1;;
+        -a|--all) TEST_ALL="ALL";
+		[ ! -z "$2" ] && {
+		    shift
+		    [ "$1" == "-f" ] && die "Use option -f before -a"
+		    [ "$1" == "--fix" ] && die "Use option --fix before -a"
+		    TEST_ALL="$*"
+		    set -- DUMMY_ARG;
+	        }
+		;;
+
+        *)
+            [ -f "$1" ] && { SCENARIO_ZIP=$1; break; }
+    
+            [ -d "$1" ] && die "TODO: dir handling"
+    
+            die "Unknown option <$1>"
+        ;;
+    esac
+    shift
+done
+
 #echo "TEST_ALL=<$TEST_ALL>"
 [ "$TEST_ALL" == "ALL" ] && GET_ALL_SCENARII
+
+[ $DO_REGRESSION_TESTS -ne 0 ] && { RUN_REGRESSION_TESTS; exit $?; }
 
 if [ ! -z "$TEST_ALL" ]; then
     #echo "FIX_ALL=<$FIX_ALL>"
