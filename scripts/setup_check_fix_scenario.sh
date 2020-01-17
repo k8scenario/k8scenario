@@ -9,16 +9,41 @@ ACTION_SCRIPT="CHECK_SCENARIO.sh"
 
 SCENARIO=""
 
+RED='\e[00;31m';      B_RED='\e[01;31m';      BG_RED='\e[07;31m'
+GREEN='\e[00;32m';    B_GREEN='\e[01;32m'     BG_GREEN='\e[07;32m'
+YELLOW='\e[00;33m';   B_YELLOW='\e[01;33m'    BG_YELLOW='\e[07;33m'
+NORMAL='\e[00m'
+
 die() {
-    echo "$0: die - $*" >&2
+    echo -e "$0: ${RED}die - $*${NORMAL}" >&2
     exit 1
+}
+
+OK() { echo -e "${GREEN}${*}${NORMAL}"; }
+
+ERROR() { echo -e "${RED}${*}${NORMAL}"; }
+
+WARN() { echo -e "${YELLOW}${*}${NORMAL}"; }
+
+RUN_SCRIPT_CHECK_EXPECTED_RETURN_CODE() {
+    SCRIPT_PLUS_ARGS="$1"; shift
+    EXPECTED_RET=$1; shift
+
+    $SCRIPT_PLUS_ARGS; RET=$?
+    echo -n "$SCRIPT_PLUS_ARGS ==> "
+    if [ $RET -eq $EXPECTED_RET ];then
+        echo -e "${GREEN}GOOD  ==>${NORMAL} '$ACTION' returned exit code $RET"
+    else
+        echo -e "${RED}ERROR ==>${NORMAL} '$ACTION' returned exit code $RET"
+    fi
 }
 
 CREATE_AND_RUN_TMP_SCRIPT() {
     ACTION_SCRIPT=$1; shift
     ACTION=$1;        shift
 
-    [ ! -x "$ACTION_SCRIPT" ] && die "[$PWD] No such '$ACTION' script <$ACTION_SCRIPT>"
+    [ ! -f "$ACTION_SCRIPT" ] && die "[$PWD] No such '$ACTION' script <$ACTION_SCRIPT>"
+    [ ! -x "$ACTION_SCRIPT" ] && die "[$PWD] '$ACTION' script <$ACTION_SCRIPT> is not executable"
 
     TMP_SH=tmp/${ACTION}_scenario.sh
     cat > $TMP_SH << EOF
@@ -30,17 +55,36 @@ export NS=$NS
 
 EOF
 
+    EXPECTED_RET=0
+    case $ACTION in
+        setup|check|fix) EXPECTED_RET=0;;
+        check-broken)    EXPECTED_RET=1;;
+    esac
+
     cat SCENARII/TEMPLATE/functions.rc $ACTION_SCRIPT >> $TMP_SH
     chmod +x $TMP_SH
 
     echo "$TMP_SH"
-    $TMP_SH
-    echo "==> returned exit code $?"
+    case $ACTION in
+        setup)
+           RUN_SCRIPT_CHECK_EXPECTED_RETURN_CODE "$TMP_SH --pre-yaml" $EXPECTED_RET
+
+	   NUM_YAML=$(find SCENARII/scenario${SCENARIO}/ -iname '*.y*ml' | wc -l)
+	   [ $NUM_YAML -gt 0 ] && {
+	       CMD="kubectl -n $NS create -f SCENARII/scenario${SCENARIO}/"
+	       echo "-- $CMD [ $NUM_YAML files ]"
+	       $CMD
+           }
+
+           RUN_SCRIPT_CHECK_EXPECTED_RETURN_CODE "$TMP_SH --post-yaml" $EXPECTED_RET
+	   ;;
+
+        *) RUN_SCRIPT_CHECK_EXPECTED_RETURN_CODE $TMP_SH $EXPECTED_RET;;
+    esac
 
     [ "$ACTION" = "setup" ] && { kubectl get all -n $NS; }
 
     [ -z "$SCENARIO" ] && return
-    echo "SCENARIO=<$SCENARIO>"
 
     [ "$ACTION" = "fix" ] && {
         echo
@@ -62,6 +106,10 @@ while [ ! -z "$1" ]; do
 	;;
     -c|--check)
         ACTION="check"
+        ACTION_SCRIPT="CHECK_SCENARIO.sh"
+	;;
+    -b|--check-broken)
+        ACTION="check-broken"
         ACTION_SCRIPT="CHECK_SCENARIO.sh"
 	;;
     -s|--setup)
