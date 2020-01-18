@@ -47,7 +47,8 @@ create_zip() {
 
     cp -a TEMPLATE/functions.rc $scenario/.functions.rc
 
-    CKSUM_FILENAME=cksum.$$
+    # Use "static name, not cksum.$$" so common across archives
+    CKSUM_FILENAME=cksum.tmp 
     {
         cd $scenario
             cksum * > ~/tmp/$CKSUM_FILENAME
