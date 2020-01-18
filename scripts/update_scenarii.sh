@@ -47,12 +47,25 @@ create_zip() {
 
     cp -a TEMPLATE/functions.rc $scenario/.functions.rc
 
+    CKSUM_FILENAME=cksum.$$
+    {
+        cd $scenario
+            cksum * > ~/tmp/$CKSUM_FILENAME
+            mv ~/tmp/$CKSUM_FILENAME .
+	    CKSUM_NAMED_FILE=$(cksum < $CKSUM_FILENAME | awk '{print $1; }')
+	    cp $CKSUM_FILENAME cksums_$CKSUM_NAMED_FILE
+	cd -
+    }
+    cp -a TEMPLATE/functions.rc $scenario/.functions.rc
+
 #set -x
     [ -f ${scenario}.zip ] && rm -f ${scenario}.zip
     zip -r9 ${scenario}.zip ${scenario}/ -x '*/*EXCLUDE_*' 2>&1 >/dev/null
 
-    # Remove - don't want it in the .git archive
+    # Remove files we - don't want in the .git archive
     rm $scenario/.functions.rc
+    rm $scenario/$CKSUM_FILENAME
+    rm $scenario/cksums_$CKSUM_NAMED_FILE
 
     [ ! -f ${scenario}.zip ] && die "Failed to create zip <${scenario}.zip>"
     [ ! -d $URL_SCENARII_DIR ] && mkdir -p $URL_SCENARII_DIR
