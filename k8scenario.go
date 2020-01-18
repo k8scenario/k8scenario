@@ -28,7 +28,7 @@ import (
 )
 
 const (
-    __DATE_VERSION__="2020-Jan-16_10h19m22"
+    __DATE_VERSION__="2020-Jan-18_10h15m47"
     __K8SCENARIO_VERSION__="k8scenario.public"
 
     // Default url used to download scenarii
@@ -600,6 +600,7 @@ func loop_check(check_script string, instructions string, challenge_type string,
         _, err_code := exec_pipe(check_script)
         //output := exec_pipe(check_script)
         //if ! strings.Contains(output, "exit status") {
+	//fmt.Printf("check_script: exit_code=%d\n", err_code)
         if err_code == 0 {
             //well_done := fmt.Sprintf("\n%s%s%s---- %s[%s]%s %sWELL DONE !!!!%s - The scenario appears to be fixed !!!!\n",
                              //colour_me_yellow, output, colour_me_normal,
