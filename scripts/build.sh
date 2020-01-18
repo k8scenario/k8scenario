@@ -30,6 +30,7 @@ function build {
 	    k8scenario.go 
 
     time CGO_ENABLED=0 go build -a -o bin/$K8SCENARIO_BINARY k8scenario.go || exit 1
+    set -x; cp -a bin/$K8SCENARIO_BINARY $COPY_K8SCENARIO_TO; set +x
 }
 
 function install_build {
