@@ -28,7 +28,7 @@ import (
 )
 
 const (
-    __DATE_VERSION__="2020-Jan-18_10h15m47"
+    __DATE_VERSION__="2020-Jan-18_10h50m59"
     __K8SCENARIO_VERSION__="k8scenario.public"
 
     // Default url used to download scenarii
@@ -643,8 +643,8 @@ func main() {
 
     flag.Parse()
 
-    showVersion()
     if version {
+        showVersion()
         os.Exit(0)
     }
     if dbg {
