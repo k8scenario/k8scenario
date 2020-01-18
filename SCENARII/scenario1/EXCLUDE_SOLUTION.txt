@@ -1,1 +1,17 @@
-This scenario deploys a bad (non-existent TAG) image
+This scenario deploys a bad (non-existent TAG) image.
+
+The solution is to fix the deployment which contains the PodSpec template.
+
+The quick and dirty method would be:
+
+    kubectl edit deploy/critical
+
+and replace mjbright/ckad-demo:BADTAG
+with        mjbright/ckad-demo:1
+
+The 'gitops' friendly, declarative way would be:
+
+    kubectl get deploy/critical -o yaml > critical.yaml
+    vi critical.yaml
+    kubectl apply -f critical.yaml
+

@@ -1,2 +1,0 @@
-hint1: There seems to be a problem in this namespace, can you take a look ?
-subjects: pods, namespaces(?), network policies, services

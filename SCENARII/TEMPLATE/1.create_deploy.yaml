@@ -15,11 +15,7 @@ spec:
         run: critical
     spec:
       containers:
-      - image: mjbright/ckad-demo:1
-        args:
-        - /bin/sh
-        - -c
-        - "sleep 3600 # try ckad-demo:alpine1 has a shell"
+      - image: mjbright/ckad-demo:BADTAG # Obvious thing to fix ...
         name: critical
         ports:
         - containerPort: 80

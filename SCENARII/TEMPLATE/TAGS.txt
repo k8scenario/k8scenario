@@ -1,0 +1,2 @@
+tags: pods, deployments, namespaces, networkpolicies, services
+level: easy,medium(CKAD),hard(CKAD/CKA),veryhard(CKA)

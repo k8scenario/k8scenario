@@ -1,1 +1,2 @@
 Intermittent service due to rogue Pods, not listening on any port, but which have the same label as the Services label selector
+TODO: ... describe the fix 

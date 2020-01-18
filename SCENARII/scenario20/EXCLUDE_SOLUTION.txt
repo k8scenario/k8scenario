@@ -1,1 +1,2 @@
-Typo on label selector 'run: ckad-dem0' on service
+Typo on label selector 'run: ckad-dem9' on service
+TODO: ... describe the fix 

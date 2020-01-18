@@ -1,0 +1,8 @@
+
+In this scenario we are launching shell commands on an image
+  mjbright/ckad-demo:1
+that has no shell, only a go static binary.
+
+There is a hint in the yaml saying to use
+  mjbright/ckad-demo:alpine1
+

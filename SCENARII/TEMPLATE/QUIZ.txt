@@ -1,0 +1,22 @@
+quiz:
+- name: Introduction
+- level: easy
+- q1: Who created Kubernetes?
+  answer1: Oracle
+  answer2: Microsoft
+  answer3: Google
+  answer4: CNCF
+  correct: 3
+- q2: When was Kubernetes announced?
+  answer1: 2011
+  answer2: 2012
+  answer3: 2014
+  answer4: 2015
+  correct: 3
+- q3: When was Kubernetes v1.0 released?
+  answer1: 2011
+  answer2: 2012
+  answer3: 2014
+  answer4: 2015
+  correct: 4
+

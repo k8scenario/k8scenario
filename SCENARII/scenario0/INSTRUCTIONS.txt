@@ -1,6 +1,7 @@
-# hint1:
+# Task Instructions: Create a Pod in namespace 'k8scenario' whose name starts with 'basictest'
 
-Just launch a Pod (and/or a Deployment/ReplicaSet) with a name starting with 'basictest', e.g. basictest-xxxx in the namespace called k8scenario (created for you)
-
-# subjects:
-- pods, namespace
+Note: There are 2 ways to do this
+    - Explicitly create a Pod using 'kubectl run' with the appropriate name
+or
+    - Create a Deployment using 'kubectl create' with the appropriate name,
+      it's Pods will also have a name derived from the Deployment name

@@ -19,24 +19,3 @@ spec:
         name: ckad-demo
         ports:
         - containerPort: 80
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  labels:
-    run: ckad-demo
-  name: ckad-demo
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      run: ckad-demo
-  template:
-    metadata:
-      labels:
-        run: ckad-demo
-    spec:
-      containers:
-      - image: mjbright/ckad-demo:6
-        name: ckad-demo
-        ports:
-        - containerPort: 80

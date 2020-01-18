@@ -1,5 +1,5 @@
 
-kubectl set image deploy/critical critical=mjbright/ckad-demo:1
+kubectl get deploy/critical -o yaml | sed 's?mjbright/ckad-demo:1?mjbright/ckad-demo:alpine1?' | kubectl apply -f -
 
 # Wait up to 20 secs for all Pods to be up
 sleep 1

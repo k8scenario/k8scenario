@@ -1,0 +1,24 @@
+
+This file will not be included in the scenario zips.
+
+It is here to document the scenario.
+
+Should contain explanatory text  (as after ____ below):
+
+Note:
+- tasks: explain a task to perform and check the result
+- fixes: create a problem config and check the result
+- quizzes: to be done ...
+
+____
+
+This 'task' scenario demonstrates ... blah blah ... principle ...
+
+To complete this 'task' ...
+
+____
+
+This 'fix' scenario demonstrates ... blah blah ... principle ...
+
+To fix this scenario you need to ...
+

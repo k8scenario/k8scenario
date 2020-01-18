@@ -1,4 +1,3 @@
-hint1: Here's a nice little counter service, you should be able to see the counter augment by doing
-    kubectl -n k8scenario run
+# Problem to fix: Here's a nice little counter service, you should be able to see the counter augment by doing
+    kubectl run
 
-subjects: pods, namespaces(?), network policies, services

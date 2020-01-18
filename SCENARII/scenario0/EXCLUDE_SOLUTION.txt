@@ -1,9 +1,14 @@
 
-An empty scenario0 will be created.
+This a basic demonstration of a 'task' senario
 
-This a basic demo senario
+To complete this 'task' you just need to create a pod
+with name starting 'basictest' e.g. basictest-xxxx
 
-Just need to create a pod with name starting 'basictest' e.g. basictest-xxxx
-Creating a deployment is OK
+Creating a deployment is OK for this
+
+Note:
+- tasks: explain a task to perform and check the result
+- fixes: create a problem config and check the result
+- quizzes: to be done ...
 
 

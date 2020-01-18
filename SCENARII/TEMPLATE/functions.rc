@@ -1,0 +1,146 @@
+
+shopt -s expand_aliases
+
+alias kubectl="\\kubectl -n $NS"
+
+CHECK_CONTEXT() {
+    CONTEXT=$(kubectl config get-contexts | awk '/^* / { print $2; }')
+    [ "$CONTEXT" = "$NS" ] && return 0
+
+    NAMESPACE=$(kubectl config get-contexts | awk '/^* / { print $5; }')
+    [ -z "$NAMESPACE" ] && NAMESPACE="default"
+    #kubectl config get-contexts | grep ^*
+    echo "Warning - context: $CONTEXT (namespace: $NAMESPACE) but tool is using namespace $NS"
+    echo
+}
+
+GET_DEPLOYMENT_IMAGE() {
+    local DEPLOY=$1; shift
+    local C=0
+    [ ! -z "$1" ] && { C=$1; shift; }
+
+    kubectl get deploy $DEPLOY -o custom-columns=IMAGE:.spec.template.spec.containers[$C].image --no-headers
+}
+
+# Loop for up to MAX_LOOPS*SLEEP seconds, checking CONDITION_EVAL
+# - to be used for checking when a SETUP or FIX condition is ready
+CONDITION_WAIT() {
+    MAX_LOOPS=$1; shift
+    SLEEP=$1; shift
+    CONDITION_EVAL="$1"; shift
+
+    local LOOP=1
+    while [ $LOOP -le $MAX_LOOPS ]; do
+        eval "$CONDITION_EVAL"
+        [ $? -eq 0 ] && exit 0
+
+        let LOOP=LOOP+1
+    done
+}
+
+# Checks that
+# - at least 1 Pod matching the name spec is Running (name 'starts' with namespec)
+# - no matching Pods are in a state other than Running
+CHECK_PODS_PREFIXED() {
+    NAME_PREFIX=$1; shift
+
+    kubectl get pods | grep "^${NAME_PREFIX}.* Running " || return 1
+
+    kubectl get pods | grep "^${NAME_PREFIX}" | grep -v " Running " && return 1
+    echo "Scenario OK"
+    return 0
+}
+
+# Checks that
+# - at least 1 Pod matching the name is Running
+# - no matching Pods are in a state other than Running
+CHECK_PODS() {
+    NAME=$1; shift
+
+    return CHECK_PODS_PREFIXED "$NAME "
+}
+
+LAST_POD_NAME() {
+    kubectl get pod -o custom-columns=NAME:.metadata.name --no-headers | head -1
+}
+
+GET_LASTPOD_IP() {
+    local POD_NAME=$(LAST_POD_NAME)
+    kubectl get pod/$POD_NAME -o custom-columns=IP:.status.podIP --no-headers
+}
+
+GET_POD_IP() {
+    local POD_NAME=$1; shift
+    kubectl get pod/$POD_NAME -o custom-columns=IP:.status.podIP --no-headers
+}
+
+GET_SVC_CLUSTERIP_IP() {
+    local SVC_NAME=$1; shift
+    kubectl get svc $SVC_NAME -o custom-columns=CIP:.spec.clusterIP --no-headers
+}
+
+GET_SVC_CLUSTERIP_PORT() {
+    local SVC_NAME=$1; shift
+    kubectl get svc $SVC_NAME -o custom-columns=PORT:.spec.ports[0].port --no-headers
+}
+
+GET_SVC_NODEPORT_PORT() {
+    local SVC_NAME=$1; shift
+    kubectl get svc $SVC_NAME -o custom-columns=PORT:.spec.ports[0].nodePort --no-headers
+}
+
+GET_NODE_IP() {
+    local N=$1; shift
+    kubectl get nodes -o custom-columns=ADDRESS:.status.addresses[0].address --no-headers | head -n $N | tail -1
+}
+
+# To test ClusterIP:
+CHECK_SVC_CLUSTERIP() {
+    local SVC_NAME=$1; shift
+
+    local CLUSTERIP_PORT=$(GET_SVC_CLUSTERIP_PORT $SVC_NAME)
+    local CLUSTERIP_IP=$(GET_SVC_CLUSTERIP_IP $SVC_NAME)
+    local ENDPOINT=${CLUSTERIP_IP}:${CLUSTERIP_PORT}
+
+    #echo "Checking service <$SVC_NAME> on ClusterIP endpoint $ENDPOINT"
+    #TEST_POD_SHELL tester "set -x; wget -O - --timeout 4 $ENDPOINT; RET=\$?; exit \$RET"
+    TEST_POD_SHELL tester "wget -O - --timeout 4 $ENDPOINT"
+    #TEST_POD_SHELL tester
+}
+
+# To test NodePort: (1st node)
+CHECK_SVC_NODEPORT() {
+    local SVC_NAME=$1; shift
+
+    local PORT=$(GET_SVC_NODEPORT_PORT $SVC_NAME)
+    local NODE_IP=$(GET_NODE_IP 1)
+    local ENDPOINT=${NODE_IP}:${PORT}/1
+
+    #echo "Checking service <$SVC_NAME> on NodePort endpoint $ENDPOINT"
+    #TEST_POD_SHELL tester "set -x; wget -O - --timeout 4 $ENDPOINT; RET=\$?; exit \$RET"
+    TEST_POD_SHELL tester "wget -O - --timeout 4 $ENDPOINT"
+    #TEST_POD_SHELL tester
+}
+
+TEST_POD_SHELL() {
+    local NAME=$1; shift
+
+    if [ -z "$1" ]; then
+        kubectl run --restart=Never --rm -it --generator=run-pod/v1 --image=alpine:latest ${NAME} -- /bin/sh
+    else
+        kubectl run --restart=Never --rm -it --generator=run-pod/v1 --image=alpine:latest ${NAME} -- /bin/sh -c "$@"
+    fi
+}
+
+# TODO/OLD:
+
+# TODO_getServicePort () { PORT=$(kubectl get service/ckad-demo | awk '/:/ { FS=":"; $0=$5; FS="/"; $0=$2; print $1; }') }
+# TODO_getClusterIP() { CLUSTER_IP=$(kubectl get service/ckad-demo | awk '/:/ { print $3; }') }
+# TODO_getPodIP() { POD_IP=$(kubectl get pods --no-headers -o wide | awk '{ print $6; exit(0); }') }
+# Any node would do: but let's take one on which our Pod is running:
+# TODO_getANodeIPForRunningPod() { NODE_IP=$(kubectl get pods --no-headers -o wide | awk '{ print $7; exit(0); }') }
+
+## -- warn if not running in k8scenario context/namespace (not a problem, just requires use of '-n k8scenario' on every command)
+
+
+

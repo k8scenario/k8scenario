@@ -1,0 +1,10 @@
+
+In this scenario we are launching shell commands on an image
+  mjbright/ckad-demo:alpine1
+
+but the command sleeps for 10 seconds ... then exits ...
+
+There is a hint in the yaml.
+
+So just increase the sleep period
+
