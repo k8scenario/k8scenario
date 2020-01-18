@@ -49,7 +49,7 @@ create_zip() {
 
 #set -x
     [ -f ${scenario}.zip ] && rm -f ${scenario}.zip
-    zip -r9 ${scenario}.zip ${scenario}/ -x '*/EXCLUDE_*' 2>&1 >/dev/null
+    zip -r9 ${scenario}.zip ${scenario}/ -x '*/*EXCLUDE_*' 2>&1 >/dev/null
 
     # Remove - don't want it in the .git archive
     rm $scenario/.functions.rc
