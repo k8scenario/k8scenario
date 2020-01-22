@@ -76,6 +76,7 @@ var (
     localServer = flag.Bool("localServer", false, "Get scenarii from local server")
 )
 
+
 func CaseInsensitiveContains(s, substr string) bool {
     s, substr = strings.ToUpper(s), strings.ToUpper(substr)
     return strings.Contains(s, substr)
@@ -157,17 +158,12 @@ func exec_pipe(pipeCmd string) (string,int) {
 
 func _exec_pipe(showOP bool, assert bool, pipeCmd ...string) (string, int) {
     debug(fmt.Sprintf("---- %s\n", strings.Join(pipeCmd[2:], " ")))
-    //fmt.Println("---- " + strings.Join(pipeCmd[2:]))
-    //fmt.Printf("---- %s\n", pipeCmd)
 
     head := pipeCmd[0]
     parts := pipeCmd[1:len(pipeCmd)]
     out, err := exec.Command(head,parts...).Output()
 
-    //TEMP:
-    //fmt.Println( fmt.Sprintf("---- %s\n", strings.Join(pipeCmd[2:], " ")) )
-    //if err != nil { fmt.Println("ERRORS=<" + err.Error() + ">") }
-    //fmt.Println("OUTPUT=<" + string(out) + ">")
+    output, err := cmd.Output()
 
     if err != nil {
         msg := fmt.Sprintf("exec.Command(PIPE) returned error with %s\n", err.Error())
@@ -178,7 +174,7 @@ func _exec_pipe(showOP bool, assert bool, pipeCmd ...string) (string, int) {
         }
     }
 
-    return return_out_exit_status(showOP, err,  out)
+    return return_out_exit_status(showOP, err,  output)
 }
 
 func return_out_exit_status(showOP bool, err error,  output []byte) (string, int) {
@@ -237,9 +233,6 @@ func _exec(showOP bool, assert bool, command string) (string, int) {
         }
     }
 
-    //if showOP {
-        //output = []byte{} // empty byte array
-    //}
     return return_out_exit_status(showOP, err,  output)
 }
 
@@ -355,25 +348,16 @@ func apply_setup_script(setup_script string, extra string, prepost_yaml string) 
     SETUP_SCRIPT := extra + setup_script
 
 
-    /*
-    fmt.Printf("Len(extra)=%d\n", len(DEBUG_SET_X))
-    fmt.Printf("Len(setup_script)=%d\n", len(setup_script))
-    fmt.Println("======")
-    fmt.Printf("Len(SETUP_SCRIPT)=%d\n", len(SETUP_SCRIPT))
-    */
-
     // TODO: invoke script once with '-pre' argument - HERE
     if prepost_yaml == "--pre-yaml" {
         set_args := "\nset -- --pre-yaml\n\n"
         _, _ = exec_pipe(set_args + SETUP_SCRIPT)
     } else if prepost_yaml == "--post-yaml" {
         set_args := "\nset -- --post-yaml\n\n"
-        _, _ = exec_pipe(set_args + SETUP_SCRIPT)
+	_, _ = exec_pipe(set_args + SETUP_SCRIPT)
     } else {
         _, _ = exec_pipe(SETUP_SCRIPT)
     }
-
-    // TODO: invoke SETUP_SCRIPT once with '-post' argument - LATER
 }
 
 func writeFile(filename string, content string) {
@@ -474,9 +458,7 @@ func install_scenario_zip(zipFile string, scenario int) (string, string, string)
         //fmt.Println( applyCmd )
         path_elems := strings.Split(filename, "/")
         filename   = path_elems[len(path_elems)-1]
-        yaml_name := strings.Split(filename, ".")[1] // 1.<yaml_name>.yaml
 
-        fmt.Printf("Applying '%s'\n", yaml_name)
 
         full_cmd := fmt.Sprintf("%s | grep -v ^$\n", applyCmd)
         //fmt.Printf("Command '%s'\n", full_cmd)
@@ -588,23 +570,13 @@ func loop_check(check_script string, instructions string, challenge_type string,
             fmt.Printf("\n%s", instructions)
         }
 
-        //fmt.Printf("%sexit_code=%d%s", colour_me_yellow, err_code, colour_me_normal)
-        //fmt.Printf("%soutput=%s%s", colour_me_yellow, output, colour_me_normal)
-        //fmt.Printf("%s%s%s", colour_me_yellow, instructions, colour_me_normal)
         sleep(CHECK_FIXED_SLEEP_SECS, 
 	      fmt.Sprintf("\n%s[%s]%s - %s%s%s",
 	                  colour_me_yellow, scenarioName, colour_me_normal,
 	                  colour_me_red, prompt, colour_me_normal) )
 
-        // XXXX output, err_code := silent_exec_pipe(check_script)
-        //output, err_code := exec_pipe(check_script)
         _, err_code := exec_pipe(check_script)
-        //output := exec_pipe(check_script)
-        //if ! strings.Contains(output, "exit status") {
-	//fmt.Printf("check_script: exit_code=%d\n", err_code)
         if err_code == 0 {
-            //well_done := fmt.Sprintf("\n%s%s%s---- %s[%s]%s %sWELL DONE !!!!%s - The scenario appears to be fixed !!!!\n",
-                             //colour_me_yellow, output, colour_me_normal,
             well_done := fmt.Sprintf("\n---- %s[%s]%s %sWELL DONE !!!!%s - The scenario appears to be fixed !!!!\n",
                              colour_me_yellow, scenarioName, colour_me_normal,
                              colour_me_green, colour_me_normal)
@@ -656,6 +628,7 @@ func main() {
          menu=true
     }
 
+
     if *zipFile != "" {
         path_elems := strings.Split(*zipFile, "/scenario")
 	zipFileNum := path_elems[ len(path_elems)-1 ]
@@ -680,6 +653,7 @@ func main() {
     if *localServer {
         *serverUrl = "http://127.0.0.1:9000"
     }
+
 
     kubeconfig = os.Getenv("KUBECONFIG")
     debug("INFO env[kubeconfig]=" + kubeconfig + "\n")
@@ -714,6 +688,7 @@ func main() {
     if incluster {
         sleep(INCLUSTER_SLEEP_SECS, "in cluster")
     }
+
 
     os.Exit(0)
 }
