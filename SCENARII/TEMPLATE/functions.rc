@@ -3,6 +3,22 @@ shopt -s expand_aliases
 
 alias kubectl="\\kubectl -n $NS"
 
+# Detect running via docker-desktop:
+export DOCKER_DESKTOP=0
+docker info 2>/dev/null | grep -q docker-desktop && export DOCKER_DESKTOP=1
+
+# Is NodePort exposed on localhost - yes if Docker Desktop
+NODEPORT_VIA_LOCALHOST=0
+[ $DOCKER_DESKTOP -ne 0 ] && NODEPORT_VIA_LOCALHOST=1
+
+[ -z "$K8SCENARIO_GO" ] && K8SCENARIO_GO=0
+
+TESTPOD="regtest-testpod"
+[ "$K8SCENARIO_GO" = "1" ] && {
+    TESTPOD="k8scenario-testpod"
+}
+export TESTPOD
+
 CHECK_CONTEXT() {
     CONTEXT=$(kubectl config get-contexts | awk '/^* / { print $2; }')
     [ "$CONTEXT" = "$NS" ] && return 0
@@ -44,9 +60,9 @@ CONDITION_WAIT() {
 CHECK_PODS_PREFIXED() {
     NAME_PREFIX=$1; shift
 
-    kubectl get pods | grep "^${NAME_PREFIX}.* Running " || return 1
+    kubectl get pods | grep -v Terminating | grep "^${NAME_PREFIX}.* Running " || return 1
 
-    kubectl get pods | grep "^${NAME_PREFIX}" | grep -v " Running " && return 1
+    kubectl get pods | grep -v Terminating | grep "^${NAME_PREFIX}" | grep -v " Running " && return 1
     echo "Scenario OK"
     return 0
 }
@@ -102,10 +118,10 @@ CHECK_SVC_CLUSTERIP() {
     local CLUSTERIP_IP=$(GET_SVC_CLUSTERIP_IP $SVC_NAME)
     local ENDPOINT=${CLUSTERIP_IP}:${CLUSTERIP_PORT}
 
+    TEST_POD_SHELL "wget -O - --timeout 4 $ENDPOINT"
     #echo "Checking service <$SVC_NAME> on ClusterIP endpoint $ENDPOINT"
-    #TEST_POD_SHELL tester "set -x; wget -O - --timeout 4 $ENDPOINT; RET=\$?; exit \$RET"
-    TEST_POD_SHELL tester "wget -O - --timeout 4 $ENDPOINT"
-    #TEST_POD_SHELL tester
+    #TEST_POD_SHELL "set -x; wget -O - --timeout 4 $ENDPOINT; RET=\$?; exit \$RET"
+    #TEST_POD_SHELL 
 }
 
 # To test NodePort: (1st node)
@@ -113,22 +129,30 @@ CHECK_SVC_NODEPORT() {
     local SVC_NAME=$1; shift
 
     local PORT=$(GET_SVC_NODEPORT_PORT $SVC_NAME)
-    local NODE_IP=$(GET_NODE_IP 1)
+
+    # In some environments, such as docker-desktop services are exposed on localhost:
+    local NODE_IP="127.0.0.1"
+    [ $NODEPORT_VIA_LOCALHOST -eq 0 ] && NODE_IP=$(GET_NODE_IP 1)
+
     local ENDPOINT=${NODE_IP}:${PORT}/1
 
     #echo "Checking service <$SVC_NAME> on NodePort endpoint $ENDPOINT"
-    #TEST_POD_SHELL tester "set -x; wget -O - --timeout 4 $ENDPOINT; RET=\$?; exit \$RET"
-    TEST_POD_SHELL tester "wget -O - --timeout 4 $ENDPOINT"
-    #TEST_POD_SHELL tester
+    #TEST_POD_SHELL "set -x; wget -O - --timeout 4 $ENDPOINT; RET=\$?; exit \$RET"
+    TEST_POD_SHELL "wget -O - --timeout 4 $ENDPOINT"
+    #TEST_POD_SHELL 
 }
 
 TEST_POD_SHELL() {
-    local NAME=$1; shift
+    #local NAME=$1; shift
+    local NAME=$TESTPOD
+
+    kubectl run --image-pull-policy='IfNotPresent' --restart=Never --rm -it --generator=run-pod/v1 --image=alpine:latest ${NAME} -- /bin/sh -c "$@"
+    return $?
 
     if [ -z "$1" ]; then
-        kubectl run --restart=Never --rm -it --generator=run-pod/v1 --image=alpine:latest ${NAME} -- /bin/sh
+        kubectl run --image-pull-policy='IfNotPresent' --restart=Never --rm -it --generator=run-pod/v1 --image=alpine:latest ${NAME} -- /bin/sh
     else
-        kubectl run --restart=Never --rm -it --generator=run-pod/v1 --image=alpine:latest ${NAME} -- /bin/sh -c "$@"
+        kubectl run --image-pull-policy='IfNotPresent' --restart=Never --rm -it --generator=run-pod/v1 --image=alpine:latest ${NAME} -- /bin/sh -c "$@"
     fi
 }
 
