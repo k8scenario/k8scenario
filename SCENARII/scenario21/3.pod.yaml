@@ -8,6 +8,7 @@ spec:
   restartPolicy: OnFailure
   containers:
   - image: mjbright/ckad-demo:alpine1
+    imagePullPolicy: IfNotPresent
     name: ckad-demo
     command: ["/bin/sh"]
     args: ["-c", "while true; do echo $date; sleep 1; done"]
