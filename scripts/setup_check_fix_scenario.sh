@@ -114,6 +114,7 @@ while [ ! -z "$1" ]; do
         ACTION="check-broken"
         ACTION_SCRIPT="CHECK_SCENARIO.sh"
 	;;
+    -d) kubectl delete ns $NS; kubectl create ns $NS;;
     -s|--setup)
         ACTION="setup"
         ACTION_SCRIPT="SETUP_SCENARIO.sh"
