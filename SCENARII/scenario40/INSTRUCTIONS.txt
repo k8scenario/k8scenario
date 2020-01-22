@@ -1,3 +1,14 @@
-# Problem to fix: Here's a nice little counter service, you should be able to see the counter augment by doing
+# Problem to fix: Here's a nice little counter service, you should be able to see the counter augment by doing a:
+
     kubectl run
+
+# OK, here's that full 'kubectl run' command to be able to check the service:
+
+    kubectl run --restart=Never --rm -it --image=alpine:latest --generator=run-pod/v1 tester -- /bin/sh -c 'wget -qO - --timeout 1 flask-app:5000'
+
+if the solution is fixed you should see something like:
+    <v1>[flask-app-696fb4674b-cch8w] Redis counter value=1
+
+Note: Due to problems seen with Kubernetes 1.17, we add the --restart=Never option.
+
 
