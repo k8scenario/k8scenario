@@ -8,7 +8,6 @@ spec:
   ports:
   - port: 80
     protocol: TCP
-    targetPort: 80
   selector:
     run: ckad-demo
-  type: NodePort
+  type: ClusterIP
