@@ -45,7 +45,7 @@ CREATE_AND_RUN_TMP_SCRIPT() {
     [ ! -f "$ACTION_SCRIPT" ] && die "[$PWD] No such '$ACTION' script <$ACTION_SCRIPT>"
     [ ! -x "$ACTION_SCRIPT" ] && die "[$PWD] '$ACTION' script <$ACTION_SCRIPT> is not executable"
 
-    TMP_SH=tmp/${ACTION}_scenario.sh
+    TMP_SH=tmp/${ACTION}_scenario${SCENARIO}.sh
     cat > $TMP_SH << EOF
 #!/bin/bash
 
@@ -61,7 +61,9 @@ EOF
         check-broken)    EXPECTED_RET=1;;
     esac
 
-    cat SCENARII/TEMPLATE/functions.rc $ACTION_SCRIPT >> $TMP_SH
+    cat SCENARII/TEMPLATE/functions.rc >> $TMP_SH
+    echo "# Start: $ACTION_SCRIPT" >> $TMP_SH
+    cat $ACTION_SCRIPT >> $TMP_SH
     chmod +x $TMP_SH
 
     echo "$TMP_SH"
