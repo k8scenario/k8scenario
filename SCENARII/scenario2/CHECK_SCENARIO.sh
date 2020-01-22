@@ -1,3 +1,3 @@
 
-CHECK_PODS_PREFIXED "critical"
+CHECK_PODS_PREFIXED "critical-"
 
