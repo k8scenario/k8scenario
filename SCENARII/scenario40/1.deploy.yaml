@@ -1,10 +1,45 @@
-kind: NetworkPolicy
-apiVersion: networking.k8s.io/v1
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: web-deny-all
+  labels:
+    run: redis
+  name: redis
 spec:
-  podSelector:
+  replicas: 1
+  selector:
     matchLabels:
       run: redis
-  ingress: []
-
+  template:
+    metadata:
+      labels:
+        run: redis
+    spec:
+      containers:
+      - image: redis:latest
+        imagePullPolicy: IfNotPresent
+        name: redis
+        ports:
+        - containerPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    run: flask-app
+  name: flask-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: flask-app
+  template:
+    metadata:
+      labels:
+        run: flask-app
+    spec:
+      containers:
+      - image: mjbright/flask-web:v1
+        imagePullPolicy: IfNotPresent
+        name: flask-app
+        ports:
+        - containerPort: 5000
