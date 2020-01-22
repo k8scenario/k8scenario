@@ -16,6 +16,7 @@ spec:
     spec:
       containers:
       - image: mjbright/ckad-demo:6
+        imagePullPolicy: IfNotPresent
         name: ckad-demo
         ports:
         - containerPort: 80

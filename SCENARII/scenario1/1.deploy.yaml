@@ -16,6 +16,7 @@ spec:
     spec:
       containers:
       - image: mjbright/ckad-demo:BADTAG
+        imagePullPolicy: IfNotPresent
         name: critical
         ports:
         - containerPort: 80

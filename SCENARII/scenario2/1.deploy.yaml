@@ -16,6 +16,7 @@ spec:
     spec:
       containers:
       - image: mjbright/ckad-demo:1
+        imagePullPolicy: IfNotPresent
         args:
         - /bin/sh
         - -c
