@@ -18,8 +18,8 @@ ENDPOINT=${NODE_IP}:${PORT}/1
 echo Checking endpoint $ENDPOINT
 
 ## -- TEST POD: ------------------------------------------------
-TEST_POD_SHELL tester "set -x; wget -O - --timeout 4 $ENDPOINT; RET=\$?; exit \$RET"
-#TEST_POD_SHELL tester
+TEST_POD_SHELL $TESTPOD "set -x; wget -O - --timeout 1 $ENDPOINT; RET=\$?; exit \$RET"
+#TEST_POD_SHELL $TESTPOD
 #kubectl -n k8scenario delete pods/tester
 
 
