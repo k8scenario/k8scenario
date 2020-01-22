@@ -18,6 +18,12 @@
 #         $0 -f -a
 #
 
+# DEFAULT ACTION: launch each scenarii:
+[ ! "$1" ] && set -- -a
+
+TMP_TOFIX=tmp/.tofix
+NEW_ALL=new.scenarii.txt
+
 OPTS=""
 TEST_ALL=""
 FIX_ALL=0
@@ -76,9 +82,9 @@ APPLY_SCENARII() {
     TEST_ALL="$*"
 
     for SCENARIO in $TEST_ALL; do
-        echo "$SCENARIO" > tmp/.tofix
+        echo "$SCENARIO" > $TMP_TOFIX
         $0 $SCENARIO
-        echo "" > tmp/.tofix
+        echo "" > $TMP_TOFIX
     done
 }
 
@@ -86,9 +92,9 @@ FIX_SCENARII() {
     TEST_ALL="$*"
 
     while true; do
-        while [ ! -f tmp/.tofix ]; do echo "Waiting for tmp/.tofix to appear"; sleep 1; done
+        while [ ! -f $TMP_TOFIX ]; do echo "Waiting for $TMP_TOFIX to appear"; sleep 1; done
 
-        while [ -f tmp/.tofix ]; do
+        while [ -f $TMP_TOFIX ]; do
             NS_STATUS=$(kubectl get ns/k8scenario -o custom-columns=STATUS:.metadata.labels.status --no-headers)
             NS_SCENARIO=$(kubectl get ns/k8scenario -o custom-columns=STATUS:.metadata.labels.scenario --no-headers)
 
@@ -96,7 +102,7 @@ FIX_SCENARII() {
             [ "$NS_STATUS" = "<none>" ] && continue
             [ "$NS_SCENARIO" = "<none>" ] && continue
 
-            SCENARIO=$(cat tmp/.tofix)
+            SCENARIO=$(cat $TMP_TOFIX)
             [ "$SCENARIO" = "" ] && continue
 
             [ "scenario$SCENARIO" != "$NS_SCENARIO" ] && die "Expected scenario$SCENARIO, but Namespace has labels{status=$NS_STATUS,scenario=$NS_SCENARIO}"
@@ -106,7 +112,9 @@ FIX_SCENARII() {
                 echo
                 echo "./scripts/setup_check_fix_scenario.sh -f $SCENARIO"
                 ./scripts/setup_check_fix_scenario.sh -f $SCENARIO
-                press ""
+                echo "fix for scenario$SCENARIO applied"
+		echo
+                press "Moving to next scenario ..."
             else
                 echo "waiting for namespace status <$NS_STATUS>"
                 sleep 1
@@ -114,20 +122,34 @@ FIX_SCENARII() {
 
         done
     done
-    rm tmp/.tofix
+    rm $TMP_TOFIX
+}
+
+VALIDATE_ALL_SCENARII_YAML() {
+    local SCENARIO_DIR=SCENARII/
+    find $SCENARIO_DIR/ -maxdepth 2 -iname '*.y*ml' -exec kubeval {} \; | grep -v valid && die "Yaml validation failed"
+}
+
+VALIDATE_SCENARIO_YAML() {
+    local SCENARIO_DIR=$1; shift
+    find $SCENARIO_DIR/ -maxdepth 0 -iname '*.y*ml' -exec kubeval {} \; | grep -v valid && die "Yaml validation failed"
 }
 
 REBUILD_SCENARIO_ZIP() {
-    scenario=scenario${1}
-    SCENARIO_ZIP=SCENARII/${scenario}.zip
+    SCENARIO=${1}
+    TEMPLATE_DIR=SCENARII/TEMPLATE
+    SCENARIO_DIR=SCENARII/scenario${SCENARIO}
+    SCENARIO_ZIP=${SCENARIO_DIR}.zip
+
+    VALIDATE_SCENARIO_YAML $SCENARIO_DIR
     #set -x
     [ -f ${SCENARIO_ZIP} ] && rm ${SCENARIO_ZIP}
-    cp -a SCENARII/TEMPLATE/functions.rc SCENARII/${scenario}/.functions.rc
-    zip -r9 ${SCENARIO_ZIP} SCENARII/${scenario}/ -x '*/EXCLUDE_*'
+    cp -a $TEMPLATE_DIR/functions.rc ${SCENARIO_DIR}/.functions.rc
+    zip -r9 ${SCENARIO_ZIP} ${SCENARIO_DIR}/ -x '*/EXCLUDE_*' -x '*/.EXCLUDE*'
     #set +x
 
     # Remove again - don't want to archive
-    rm SCENARII/${scenario}/.functions.rc
+    rm ${SCENARIO_DIR}/.functions.rc
 }
 
 while [ ! -z "$1" ]; do
@@ -148,6 +170,7 @@ while [ ! -z "$1" ]; do
 		;;
 
         -f|--fix) FIX_ALL=1;;
+        -na|--new-all) TEST_ALL=$(cat $NEW_ALL);;
         -a|--all) TEST_ALL="ALL";
 		[ ! -z "$2" ] && {
 		    shift
@@ -186,12 +209,22 @@ if [ ! -z "$TEST_ALL" ]; then
     exit 0
 fi
 
+if [ $FIX_ALL -ne 0 ];then
+    # Fix each of the scenarii:
+    FIX_SCENARII $TEST_ALL
+    exit 0
+fi
+
 #./bin/k8scenario.public --keepns --zip SCENARII/scenario21.zip 
 [ -z "$SCENARIO_ZIP" ]   && die "No scenario file specified"
 [ ! -f "$SCENARIO_ZIP" ] && die "No such scenario file <$SCENARIO_ZIP>"
 
+echo "$SCENARIO" > $TMP_TOFIX
+#echo "\$SCENARIO=$(cat $TMP_TOFIX)"
+
 set -x
 #./bin/k8scenario.public $OPTS --zip $SCENARIO_ZIP
+export TESTMODE_VERBOSE=1
 ./bin/k8scenario.private $OPTS --zip $SCENARIO_ZIP
 #./bin/k8scenario.private $OPTS --menu --dir $SCENARIO_ZIP
 
