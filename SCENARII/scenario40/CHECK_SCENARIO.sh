@@ -1,45 +1,21 @@
 
-
-
-## TODO:
-#  kubectl get pods | grep ^critical | grep Running && echo "Scenario OK"
-
-getServicePort () {
-    SERVICE=$1
-    PORT=$(kubectl get service/$SERVICE | awk '/:/ { FS=":"; $0=$5; FS="/"; $0=$2; print $1; }')
-}
-
-getClusterIP() {
-    SERVICE=$1
-    CLUSTER_IP=$(kubectl get service/$SERVICE | awk '/:/ { print $3; }')
-}
-
-getPodIP() {
-    POD_MATCH=""
-    [ ! -z "$1" ] && POD_MATCH="/$1"
-    POD_IP=$(kubectl get pod${POD_MATCH} --no-headers -o wide | awk '{ print $6; exit(0); }')
-}
-
-getANodeIPForRunningPod() {
-    POD_MATCH=""
-    [ ! -z "$1" ] && POD_MATCH="/$1"
-    # Any node would do: but let's take one on which our Pod is running on
-    NODE_IP=$(kubectl get pod${POD_MATCH} --no-headers -o wide | awk '{ print $7; exit(0); }')
-}
-
-getANodeIP() {
-    getANodeIPForRunningPod
-}
-
 set -x
 
-getANodeIP
-getServicePort flask-app
+IP=$(GET_SVC_CLUSTERIP_IP flask-app)
+PORT=$(GET_SVC_CLUSTERIP_PORT flask-app)
 
-EP=${NODE_IP}:${PORT}
+EP=${IP}:${PORT}
 
 echo "ENDPOINT=$EP"
-kubectl run --restart=Never --rm -it --generator=run-pod/v1 --image=alpine:latest ${NS}-test -- /bin/sh -c "wget -O - --timeout 4 $EP; exit \$?"
+
+# NOTE: Because of interactivity problems (seen with Kube 1.17): we use --restart=Never
+#kubectl run --restart=Never --rm -it --generator=run-pod/v1 --image=alpine:latest ${NS}-test -- /bin/sh -c "wget -O - --timeout 1 $EP; exit \$?"
+#kubectl run --restart=Never --rm -it --generator=run-pod/v1 --image=alpine:latest $TESTPOD -- /bin/sh -c "wget -qO - --timeout 1 $EP"
+# <v1>[flask-app-696fb4674b-cch8w] Redis counter value=93
+
+#kubectl logs tester | grep counter && return 0
+
+TEST_POD_SHELL "wget -qO - --timeout 1 $EP"
 
 
 
