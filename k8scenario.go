@@ -55,7 +55,8 @@ const (
 var (
     pubUrl = __DEFAULT_PUBURL__
 
-    tempfile = "/tmp/temp"
+    USER= os.Getenv("USER")
+    tempfile = fmt.Sprintf("/tmp/temp.%s", USER)
 
     // Globally accessible so we can easily append it to os/exec environment:
     kubeconfig = ""
