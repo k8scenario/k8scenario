@@ -161,7 +161,7 @@ func _exec_pipe(showOP bool, assert bool, pipeCmd ...string) (string, int) {
 
     head := pipeCmd[0]
     parts := pipeCmd[1:len(pipeCmd)]
-    out, err := exec.Command(head,parts...).Output()
+    cmd := exec.Command(head,parts...)
 
     output, err := cmd.Output()
 
@@ -208,9 +208,6 @@ func return_out_exit_status(showOP bool, err error,  output []byte) (string, int
 
         fmt.Printf("%s%s%s", EXIT_COLOUR, exit_status, colour_me_normal)
 
-	if len(output) != 0 {
-            fmt.Printf("\n%s%s%s", colour_me_yellow, string(output), colour_me_normal)
-        }
     }
     return string(output) + exit_status, exit_status_int
 }
