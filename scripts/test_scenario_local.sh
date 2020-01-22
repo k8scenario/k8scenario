@@ -7,13 +7,15 @@
 #   e.g.
 #     $0 21
 #
-# - To run all scenarios in a loop: waiting for each to be fixed:
-#   (to be used with -f option below)
-#     $0 -a
+# - To test all scenarios:
+#   In 2 separate consiles:
+#     - 1st run all scenarios in a loop: waiting for each to be fixed:
+#       (to be used with -f option below)
+#         $0 -a
 #
-# - To fix the current scenario (stored in tmp/.tofix):
-#   (to be used with -a option above)
-#     $0 -f -a
+#     - To fix the current scenario (stored in $TMP_TOFIX):
+#       (to be used with -a option above)
+#         $0 -f -a
 #
 
 OPTS=""
