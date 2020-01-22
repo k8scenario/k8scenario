@@ -95,8 +95,10 @@ upload_zips() {
 DOWNLOAD="wget --no-check-certificate --no-cache --no-cookies -q -O -"
 DOWNLOAD="curl -sL -o -"
 
-check_zips() {
+check_online_zips() {
     cd $SCENARII_DIR
+
+    TIMER_START
 
     for scenario in scenario*/; do
         scenario=${scenario%/}
@@ -128,6 +130,9 @@ check_zips() {
 
     #cd -
     cd $BASE_DIR
+
+    echo "Time taken to detect online changes (due to browser caching?):"
+    TIMER_START
 }
 
 function rebuild_index {
@@ -163,6 +168,33 @@ VALIDATE_SCENARIO_YAML() {
     find $SCENARIO_DIR/ -maxdepth 0 -iname '*.y*ml' -exec kubeval {} \; | grep -v valid && die "Yaml validation failed"
 }
 
+# START: TIMER FUNCTIONS ==============================================
+
+TIMER_START() { START_S=`date +%s`; }
+
+TIMER_STOP() {
+    END_S=`date +%s`
+    let TOOK=END_S-START_S
+
+    TIMER_hhmmss $TOOK
+    echo "Took $TOOK secs [${HRS}h${MINS}m${SECS}]"
+}
+
+TIMER_hhmmss() {
+    _REM_SECS=$1; shift
+
+    let SECS=_REM_SECS%60
+    let _REM_SECS=_REM_SECS-SECS
+    let MINS=_REM_SECS/60%60
+    let _REM_SECS=_REM_SECS-60*MINS
+    let HRS=_REM_SECS/3600
+
+    [ $SECS -lt 10 ] && SECS="0$SECS"
+    [ $MINS -lt 10 ] && MINS="0$MINS"
+}
+
+# END: TIMER FUNCTIONS ================================================
+
 [ ! -d $SCENARII_DIR ] && die "No such scenario dir <$SCENARII_DIR>"
 
 [ ! -f .setup.rc ] && die "No .setup.rc in $PWD"
@@ -178,9 +210,9 @@ while [ ! -z "$1" ]; do
 	#    ./SCENARII/local_server.sh
         -l|--local) URL_BASE=http://127.0.0.1:9000;;
 
-        -u|--up*|--pub|-pub)       WEB_UPLOAD=1;;
-        -c|--check) check_zips;    RET=$?; echo "Exiting ... $RET"; exit $RET;;
-        -i|--index) rebuild_index; RET=$?; echo "Exiting ... $RET"; exit $RET;;
+        -u|--up*|--pub|-pub)           WEB_UPLOAD=1;;
+        -c|--check) check_online_zips; RET=$?; echo "Exiting ... $RET"; exit $RET;;
+        -i|--index) rebuild_index;     RET=$?; echo "Exiting ... $RET"; exit $RET;;
 
     esac
     shift
@@ -193,7 +225,7 @@ create_zips
 
 if [ $WEB_UPLOAD -ne 0 ];then
     upload_zips
-    check_zips
+    check_online_zips
 fi
 #exit 0
 
