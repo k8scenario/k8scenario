@@ -61,7 +61,7 @@ create_zip() {
 
 #set -x
     [ -f ${scenario}.zip ] && rm -f ${scenario}.zip
-    zip -r9 ${scenario}.zip ${scenario}/ -x '*/*EXCLUDE_*' 2>&1 >/dev/null
+    zip -r9 ${scenario}.zip ${scenario}/ -x '*/*EXCLUDE_*' -x '*/.EXCLUDE*' 2>&1 >/dev/null
 
     # Remove files we - don't want in the .git archive
     rm $scenario/.functions.rc
@@ -153,6 +153,16 @@ function rebuild_index {
     echo "[$PWD] Rebuilding index ... DONE"
 }
 
+VALIDATE_ALL_SCENARII_YAML() {
+    local SCENARIO_DIR=SCENARII/
+    find $SCENARIO_DIR/ -maxdepth 2 -iname '*.y*ml' -exec kubeval {} \; | grep -v valid && die "Yaml validation failed"
+}
+
+VALIDATE_SCENARIO_YAML() {
+    local SCENARIO_DIR=$1; shift
+    find $SCENARIO_DIR/ -maxdepth 0 -iname '*.y*ml' -exec kubeval {} \; | grep -v valid && die "Yaml validation failed"
+}
+
 [ ! -d $SCENARII_DIR ] && die "No such scenario dir <$SCENARII_DIR>"
 
 [ ! -f .setup.rc ] && die "No .setup.rc in $PWD"
@@ -177,6 +187,8 @@ while [ ! -z "$1" ]; do
 done
 
 #rebuild_index
+#find SCENARII/ -maxdepth 2 -iname '*.y*ml' -exec kubeval {} \; | grep -v valid && die "Yaml validation failed"
+VALIDATE_ALL_SCENARII_YAML
 create_zips
 
 if [ $WEB_UPLOAD -ne 0 ];then
