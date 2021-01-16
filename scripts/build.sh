@@ -56,24 +56,6 @@ function install_build {
     fi
 }
 
-function docker_build_and_push {
-
-    [ $PROMPTS -ne 0 ] && press "About to build docker image"
-
-
-    docker build -t mjbright/k8scenario:latest .
-
-    if [ -z "$TAG" ];then
-        TAG="latest"
-        docker push mjbright/k8scenario:latest
-    else
-        TAG="latest"
-        docker tag mjbright/k8scenario:latest mjbright/k8scenario:$TAG
-        docker push mjbright/k8scenario:latest
-        docker push mjbright/k8scenario:$TAG
-    fi
-}
-
 function CLEAN_k8scenario {
     echo "---- Deleting k8scenario pod if present:"
     kubectl get pod |& grep k8scenario && kubectl delete pod k8scenario
@@ -144,7 +126,6 @@ done
 
 build
 install_build
-#docker_build_and_push
 
 if [ $PROMPTS -ne 0 ]; then
     press "About to run k8scenario"
