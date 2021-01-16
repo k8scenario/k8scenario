@@ -33,29 +33,6 @@ function build {
     set -x; cp -a bin/$K8SCENARIO_BINARY $COPY_K8SCENARIO_TO; set +x
 }
 
-function install_build {
-    mkdir -p BAK/
-    ls -altrh bin/k8scenario 
-    cp -a k8scenario.go BAK/k8scenario.go.$DATE_VERSION
-
-    if [ -d ~/usr/bin_lin64/ ]; then
-        cp -a bin/$K8SCENARIO_BINARY ~/usr/bin_lin64/${K8SCENARIO_BINARY}.$DATE_VERSION
-
-        ls -altrh ~/usr/bin_lin64/${K8SCENARIO_BINARY}.$DATE_VERSION
-
-        # Copy file from symlink: (no -a):
-        cp  /home/mjb/usr/bin_lin64/kubectl ./bin/
-    else
-        if [ -d ~/BINARIES/bin_lin64/ ]; then
-            cp -a bin/$K8SCENARIO_BINARY ~/BINARIES/bin_lin64/${K8SCENARIO_BINARY}.$DATE_VERSION
-            ls -altrh ~/BINARIES/bin_lin64/${K8SCENARIO_BINARY}.$DATE_VERSION
-
-            # Copy file from symlink: (no -a):
-            cp  /home/mjb/BINARIES/bin_lin64/kubectl ./bin/
-        fi
-    fi
-}
-
 [ ! -f .setup.rc ] && die "No .setup.rc in $PWD"
 . .setup.rc
 
@@ -76,5 +53,4 @@ while [ ! -z "$1" ]; do
 done
 
 build
-install_build
 
