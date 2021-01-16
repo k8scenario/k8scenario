@@ -2,13 +2,8 @@
 
 DATE_VERSION=$(date +%Y-%b-%d_%02Hh%02Mm%02S)
 
-# Disabled for now as causing error message on github action build:
-# - https://github.com/k8scenario/k8scenario/runs/1713449601?check_suite_focus=true
-#    can't load package: build constraints exclude all Go files
-#    - https://github.com/golang/go/issues/24433
-#    - https://github.com/golang/go/issues/24068
-
-# export CGO_ENABLED=0 
+# Unneeded?
+export CGO_ENABLED=0 
 
 PROMPTS=0
 
