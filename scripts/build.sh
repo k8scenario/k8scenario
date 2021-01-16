@@ -2,6 +2,14 @@
 
 DATE_VERSION=$(date +%Y-%b-%d_%02Hh%02Mm%02S)
 
+# Disabled for now as causing error message on github action build:
+# - https://github.com/k8scenario/k8scenario/runs/1713449601?check_suite_focus=true
+#    can't load package: build constraints exclude all Go files
+#    - https://github.com/golang/go/issues/24433
+#    - https://github.com/golang/go/issues/24068
+
+# export CGO_ENABLED=0 
+
 PROMPTS=0
 
 function die {
@@ -29,7 +37,7 @@ function build {
 	    -e "s?__DEFAULT_PUBURL__.*=.*?__DEFAULT_PUBURL__=\"$DEFAULT_PUBURL\"?g" \
 	    k8scenario.go 
 
-    time CGO_ENABLED=0 go build -a -o bin/$K8SCENARIO_BINARY k8scenario.go || exit 1
+    time go build -a -o bin/$K8SCENARIO_BINARY k8scenario.go || exit 1
     set -x; cp -a bin/$K8SCENARIO_BINARY $COPY_K8SCENARIO_TO; set +x
 }
 
