@@ -56,53 +56,6 @@ function install_build {
     fi
 }
 
-function CLEAN_k8scenario {
-    echo "---- Deleting k8scenario pod if present:"
-    kubectl get pod |& grep k8scenario && kubectl delete pod k8scenario
-
-    echo "---- Deleting scenario namespaces if present:"
-    NAMESPACES=$(kubectl get ns |& grep ^scenario | awk '{ print $1; }')
-    if [ ! -z "$NAMESPACES" ]; then
-        for NAMESPACE in $NAMESPACES; do
-            echo kubectl delete ns/$NAMESPACE
-            kubectl delete ns/$NAMESPACE
-        done
-    fi
-
-    #kubectl get ns |& grep ^scenario && kubectl delete ns $(kubectl get ns | grep ^scenario | awk '{ print $1; }')
-}
-
-function run_k8scenario {
-    sed "s/__TAG__/$TAG/g" < k8scenario.template.yaml > k8scenario.yaml
-    sed "s/__TAG__/$TAG/g" < k8scenario_menu.template.yaml > k8scenario_menu.yaml
-
-    # CLEANUP:
-    CLEAN_k8scenario
-
-    #kubectl create -f k8scenario.yaml
-    kubectl create -f k8scenario_menu.yaml
-
-    while kubectl get pods k8scenario | grep Running; do
-	echo "Waiting for pod/k8scenario to be Running"
-        sleep 2
-        kubectl get pods k8scenario
-    done
-    kubectl get pods k8scenario
-
-    #while ! kubectl logs pod/k8scenario | grep -v "Detect doesn't exists"; do
-    #done
-    echo "Waiting for pod/k8scenario logs ..."
-    sleep 5
-    kubectl logs pod/k8scenario
-
-    while true; do
-        echo "---- $(date) ----------------------"
-        LAST_SCENARIO=$(kubectl get ns | awk '/^scenario/ { print $1; }' | tail -1)
-        kubectl -n $LAST_SCENARIO get all
-	sleep 5
-    done
-}
-
 [ ! -f .setup.rc ] && die "No .setup.rc in $PWD"
 . .setup.rc
 
@@ -117,8 +70,6 @@ TAG=""
 
 while [ ! -z "$1" ]; do
     case $1 in
-        -k8s|-run)
-	      run_k8scenario; exit $?;;
         *)    TAG=$1;;
     esac
     shift
@@ -126,12 +77,4 @@ done
 
 build
 install_build
-
-if [ $PROMPTS -ne 0 ]; then
-    press "About to run k8scenario"
-
-    run_k8scenario
-fi
-
-
 
