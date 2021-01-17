@@ -4,11 +4,11 @@ package main
 
 import (
     "fmt"
-    "flag"
-    "log"
+    //"flag"
+    //"log"
     "io/ioutil"
     "io"
-    "bufio"
+    "bufio"   // for reading stdin
 
     "os"
     "os/exec"
@@ -28,7 +28,7 @@ import (
 )
 
 const (
-    __DATE_VERSION__="2020-Jan-18_10h50m59"
+    __DATE_VERSION__="2021-Jan-16_12h52m15"
     __K8SCENARIO_VERSION__="k8scenario.public"
 
     // Default url used to download scenarii
@@ -143,17 +143,17 @@ func assert_exec(command string) (string,int) {
 func silent_exec_pipe(pipeCmd string) (string,int) {
     showOP := false
     assert := false
-    return _exec_pipe( showOP, assert, "/bin/sh", "-c", pipeCmd )
+    return _exec_pipe( showOP, assert, "/bin/bash", "-c", pipeCmd )
 }
 func assert_exec_pipe(pipeCmd string) (string,int) {
     showOP := true
     assert := true
-    return _exec_pipe( showOP, assert, "/bin/sh", "-c", pipeCmd )
+    return _exec_pipe( showOP, assert, "/bin/bash", "-c", pipeCmd )
 }
 func exec_pipe(pipeCmd string) (string,int) {
     showOP := true
     assert := false
-    return _exec_pipe( showOP, assert, "/bin/sh", "-c", pipeCmd )
+    return _exec_pipe( showOP, assert, "/bin/bash", "-c", pipeCmd )
 }
 
 func _exec_pipe(showOP bool, assert bool, pipeCmd ...string) (string, int) {
