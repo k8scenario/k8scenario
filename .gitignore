@@ -25,3 +25,4 @@
 .*.sw*
 .*~
 
+.kubeconfig.rc
