@@ -90,7 +90,6 @@ var (
 
     USER = os.Getenv("USER")
     tempfile = fmt.Sprintf("/tmp/tempfile.%s", USER)
-
 )
 
 
@@ -217,9 +216,6 @@ func return_out_exit_status(showOP bool, err error,  output []byte) (string, int
         }
     }
 
-    //if msg, ok := err.(*exec.ExitError); ok { // there is error code
-    //}
-
     EXIT_COLOUR:=colour_me_normal
     if exit_status_int != 0 { EXIT_COLOUR=colour_me_red }
     if exit_status != ""    { exit_status = " - " + exit_status }
@@ -227,11 +223,7 @@ func return_out_exit_status(showOP bool, err error,  output []byte) (string, int
     if showOP {
         //fmt.Printf("\n%s%s%s%s%s%s",
         fmt.Printf("%s%s%s", EXIT_COLOUR, exit_status, colour_me_normal)
-
-	/*
-*/
     }
-    //fmt.Printf("\n%s%s%s", colour_me_yellow, string(output), colour_me_normal)
     return string(output) + exit_status, exit_status_int
 }
 
@@ -246,7 +238,6 @@ func _exec(showOP bool, assert bool, command string) (string, int) {
     head := parts[0]
     parts = parts[1:len(parts)]
 
-    //output, err := exec.Command(head,parts...).Output()
     output, err := exec.Command(head,parts...).CombinedOutput()
     if err != nil {
         msg := fmt.Sprintf("_exec: exec.Command(PIPE) returned error with %s\n", err.Error())
@@ -349,19 +340,8 @@ func readFileFromReader(f *zip.File) (string) {
 
 func write_check_script(check_script string, extra string) (string) {
 
-    //CHECK_SCRIPTbytes, readf_err := ioutil.ReadFile(tempfile)
-    //if readf_err != nil {
-        //fmt.Println("check_script: " + readf_err.Error())
-    //}
-
     CHECK_SCRIPT := "#!/bin/bash\n" + "##__START__\n" +  extra + "#__START_check_script__\n" + string( check_script ) + "##__END__\n"
     //debug(CHECK_SCRIPT)
-    /*
-    fmt.Printf("Len(extra)=%d\n", len(extra))
-    fmt.Printf("Len(check_script)=%d\n", len(check_script))
-    fmt.Println("======")
-    fmt.Printf("Len(CHECK_SCRIPT)=%d\n", len(CHECK_SCRIPT))
-    */
 
     // TODO: invoke SETUP_SCRIPT once with '-pre' argument - HERE
     return CHECK_SCRIPT
@@ -372,7 +352,6 @@ func apply_setup_script(scenario int, setup_script string, extra string, prepost
         return
     }
 
-    //SETUP_SCRIPT := extra + setup_script
     SETUP_SCRIPT := "#!/bin/bash\n" + "##__START__\n" +  extra + "#__START_setup_script__\n" + string( setup_script ) + "##__END__\n"
 
     content := ""
@@ -384,6 +363,7 @@ func apply_setup_script(scenario int, setup_script string, extra string, prepost
     } else if prepost_yaml == "--post-yaml" {
         set_args := "\nset -- --post-yaml\n\n"
 	content = set_args + SETUP_SCRIPT
+
 	_, _ = exec_pipe(content)
     } else {
         content = SETUP_SCRIPT
@@ -416,15 +396,7 @@ func install_scenario_zip(zipFile string, scenario int) (string, string, string,
     }
     defer r.Close()
 
-    // Iterate through the files in the archive,
-    // printing some of their contents.
-    //for _, f := range r.File {
-        //strlen := len(f.Name)
-        //if f.Name[strlen-1:] == "/" { continue; }
-        //debug(fmt.Sprintf("File: %s:\n", f.Name))
-    //}
 
-    //pipeCmd := "kubectl get namespace | awk '/^k8scenario/ { printf \"namespace/%s \", $1; }'"
     pipeCmd := "kubectl get namespaces --no-headers " + *namespace + " | awk '{ print $1; }' "
     namespace_match, _ := exec_pipe(pipeCmd)
     if !strings.Contains(namespace_match, "NotFound")      {
@@ -479,7 +451,6 @@ func install_scenario_zip(zipFile string, scenario int) (string, string, string,
         // GATHER CHECK_SCRIPT:
         if fileName == "CHECK_SCENARIO.sh"  {
             CHECK_SCRIPT = readFileFromReader(f)
-            //if dbg { //writeFile("/tmp/CHECK_SCRIPT.sh.raw.txt", CHECK_SCRIPT); }
         }
 
         // GATHER INSTRUCTIONS:
@@ -723,6 +694,7 @@ func wait_on_regtest_ok_label_fn() {
 }
 
 func main() {
+    fmt.Println("Using default URL: " + DEFAULT_URL)
 
     bool_args := map[string]*bool{
         "help": &help,
@@ -767,7 +739,7 @@ func main() {
         if ok {
             if verbose { fmt.Printf("Found boolean option %s\n", option); }
             *bool_args[option]=true
-            fmt.Printf("bool %s=%t\n", option, *bool_args[option])
+            //fmt.Printf("bool %s=%t\n", option, *bool_args[option])
             //ok = true;
             continue;
         } else {
@@ -779,7 +751,7 @@ func main() {
             a=a+1
             if verbose { fmt.Printf("Found string option %s\n", option); }
             *str_args[option]=os.Args[a]
-            fmt.Printf("string %s='%s'\n", option, *str_args[option])
+            //fmt.Printf("string %s='%s'\n", option, *str_args[option])
             //ok = true;
             continue;
         } else {
@@ -791,7 +763,7 @@ func main() {
 	    a=a+1
 	    if verbose { fmt.Printf("Found integer option %s\n", option); }
 	    *int_args[option],_ = strconv.Atoi(os.Args[a])
-	    fmt.Printf("integer %s=%d\n", option, *int_args[option])
+	    ////fmt.Printf("integer %s=%d\n", option, *int_args[option])
 	    //ok = true;
 	    continue;
 	} else {
@@ -903,7 +875,6 @@ func main() {
     }
 
     _, _, _, _ = install_scenario(*scenario)
-
 
     if incluster {
         sleep(INCLUSTER_SLEEP_SECS, "in cluster")
