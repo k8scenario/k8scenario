@@ -4,6 +4,7 @@ package main
 
 import (
     "fmt"
+    "sort"
     //"flag"
     //"log"
     "io/ioutil"
@@ -542,6 +543,12 @@ func menu_loop() {
     fileH.Close()
 
     reader := bufio.NewReader(os.Stdin)
+
+    sort.Slice(txtlines, func(a, b int) bool {
+        valA, _ := strconv.Atoi(txtlines[a])
+        valB, _ := strconv.Atoi(txtlines[b])
+        return valA < valB
+    })
 
     for true {
         //fmt.Println()
