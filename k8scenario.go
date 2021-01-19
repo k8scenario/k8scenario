@@ -27,14 +27,17 @@ import (
     "net/http"
 )
 
+var (
+    // Build time constants:
+    BUILD_TIME    string = ""
+    BUILD_VERSION string = ""
+    VERSION       string = ""
+    DEFAULT_URL   string = "" // Default url used to download scenarii
+)
+
 const (
-    __DATE_VERSION__="2021-Jan-17_14h14m42"
-    __K8SCENARIO_VERSION__="k8scenario.public"
-
-    // Default url used to download scenarii
-    __DEFAULT_PUBURL__="https://k8scenario.github.io/static/k8scenarii"
-
     __DEFAULT_NAMESPACE__ = "k8scenario"
+
     // time to wait sleeping if running in cluster
     INCLUSTER_SLEEP_SECS=3600
 
@@ -55,7 +58,7 @@ const (
 
 
 var (
-    pubUrl = __DEFAULT_PUBURL__
+    pubUrl = DEFAULT_URL
     defaultNamespace = __DEFAULT_NAMESPACE__
 
     // Globally accessible so we can easily append it to os/exec environment:
@@ -692,7 +695,8 @@ func debug(msg string) {
 }
 
 func showVersion() {
-    fmt.Println("Version: " + __K8SCENARIO_VERSION__ + "/" + __DATE_VERSION__)
+    versionStr := fmt.Sprintf("k8scenario: %s [Built at %s]\n", VERSION, BUILD_TIME)
+    fmt.Println(versionStr)
 }
 
 func press(prompt string) {
