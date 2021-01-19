@@ -1,6 +1,8 @@
 #!/bin/bash
 
+VERSION=$(cat version | sed 's/:.*//')
 DATE_VERSION=$(date +%Y-%b-%d_%02Hh%02Mm%02S)
+BUILD_VERSION="public"
 
 # Unneeded?
 export CGO_ENABLED=0 
@@ -25,14 +27,19 @@ function build {
     # go build -o k8scenario k8scenario.go || exit 1
     # builds static binary:
 
-    set -x
-    sed -i.bak \
-	    -e "s/__K8SCENARIO_VERSION__.*=.*/__K8SCENARIO_VERSION__=\"$K8SCENARIO_BINARY\"/g" \
-	    -e "s/__DATE_VERSION__.*=.*/__DATE_VERSION__=\"$DATE_VERSION\"/g" \
-	    -e "s?__DEFAULT_PUBURL__.*=.*?__DEFAULT_PUBURL__=\"$DEFAULT_PUBURL\"?g" \
-	    k8scenario.go 
+    VERSION_INFO="--ldflags=\"-X 'main.BUILD_TIME=$DATE_VERSION' \
+                              -X 'main.BUILD_VERSION=${BUILD_VERSION}' \
+                              -X 'main.VERSION=${VERSION}' \
+                              -X 'main.DEFAULT_URL=$DEFAULT_PUBURL'\""
+    VERSION_INFO=$(echo $VERSION_INFO | sed 's/  */ /g')
+    echo "VERSION_INFO=$VERSION_INFO"
 
-    time go build -a -o bin/$K8SCENARIO_BINARY k8scenario.go || exit 1
+    # Use eval to be able to treat quotes in $VERSION_INFO:
+    CMD="time CGO_ENABLED=0 go build $VERSION_INFO -a -o bin/$K8SCENARIO_BINARY k8scenario.go"
+    echo "---- $CMD"
+    eval $CMD || exit 1
+    #time go build -a -o bin/$K8SCENARIO_BINARY k8scenario.go || exit 1
+
     set -x; cp -a bin/$K8SCENARIO_BINARY $COPY_K8SCENARIO_TO; set +x
 }
 
