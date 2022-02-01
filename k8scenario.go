@@ -264,8 +264,7 @@ func install_scenario(scenario int) (string, string, string) {
     zipUrl      := fmt.Sprintf("%s/%s.zip", *serverUrl, scenarioName)
     zipFile := "/tmp/a.zip"
 
-    //*namespace = scenarioName
-    *namespace = "k8scenario"
+    os.Setenv("SCENARIO", string(scenario))
 
     if strings.Contains(*serverUrl, "file:") {
         zipFile = zipUrl[ 8: ]
