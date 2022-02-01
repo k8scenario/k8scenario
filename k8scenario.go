@@ -260,20 +260,20 @@ func install_scenario(scenario int) (string, string, string) {
     //debug(fmt.Sprintf("Downloading scenario %d ...\n", scenario))
     fmt.Sprintf("Downloading scenario %d ...\n", scenario)
 
-    scenarioName := fmt.Sprintf("scenario%d", scenario)
-    zipUrl      := fmt.Sprintf("%s/%s.zip", *serverUrl, scenarioName)
-    zipFile := "/tmp/a.zip"
+    scenario_name := fmt.Sprintf("scenario%d", scenario)
+    zipUrl        := fmt.Sprintf("%s/%s.zip", *serverUrl, scenario_name)
+    zipFile       := "/tmp/a.zip"
 
     os.Setenv("SCENARIO", string(scenario))
 
     if strings.Contains(*serverUrl, "file:") {
         zipFile = zipUrl[ 8: ]
-        debug(fmt.Sprintf("Using file %s for %s ... \n", zipFile, scenarioName))
+        debug(fmt.Sprintf("Using file %s for %s ... \n", zipFile, scenario_name))
     }
 
     if strings.Contains(*serverUrl, "http:") ||
        strings.Contains(*serverUrl, "https:") {
-        debug(fmt.Sprintf("Downloading %s for %s ... \n", zipUrl, scenarioName))
+        debug(fmt.Sprintf("Downloading %s for %s ... \n", zipUrl, scenario_name))
         if err := DownloadFile(zipFile, zipUrl); err != nil {
             panic(err)
         }
@@ -339,7 +339,7 @@ func write_check_script(check_script string, extra string) (string) {
     return CHECK_SCRIPT
 }
 
-func apply_setup_script(setup_script string, extra string, prepost_yaml string) {
+func apply_setup_script(scenario int, setup_script string, extra string, prepost_yaml string) {
     if setup_script == "" {
         return
     }
@@ -372,8 +372,11 @@ func writeFile(filename string, content string) {
 
 func install_scenario_zip(zipFile string, scenario int) (string, string, string) {
     scenario_name := fmt.Sprintf("scenario%d", scenario)
+    fmt.Print()
     showVersion()
-    fmt.Printf("Installing %s ... into namespace %s\n", scenario_name, *namespace)
+    fmt.Printf("\n---- %s[%s]%s Installing into namespace %s%s%s\n",
+               colour_me_yellow, scenario_name, colour_me_normal,
+               colour_me_green, *namespace, colour_me_normal)
     // Open a zip archive for reading.
     r, err := zip.OpenReader(zipFile)
     if err != nil {
@@ -393,7 +396,7 @@ func install_scenario_zip(zipFile string, scenario int) (string, string, string)
     namespaces, _ := exec_pipe(pipeCmd)
     if namespaces != "" {
         fmt.Println( "Deleting existing: " + namespaces)
-        silent_exec( fmt.Sprintf("kubectl label --overwrite namespace %s status=deleting scenario=%s", *namespace, scenario_name) )
+        silent_exec( fmt.Sprintf("kubectl label --overwrite namespace %s status=deleting scenario=%d loop-", *namespace, scenario) )
         silent_exec("kubectl delete " + namespaces)
     }
 
@@ -463,10 +466,10 @@ func install_scenario_zip(zipFile string, scenario int) (string, string, string)
         //fmt.Printf("Command '%s'\n", full_cmd)
         exec_pipe( full_cmd )
     }
-    apply_setup_script(SETUP_SCRIPT, EXPORT_NAMESPACE + FUNCTIONS_RC + "\n", "--post-yaml")
+    apply_setup_script(scenario, SETUP_SCRIPT, EXPORT_NAMESPACE + FUNCTIONS_RC + "\n", "--post-yaml")
 
     debug("======== " + zipFile + "\n")
-    silent_exec( fmt.Sprintf("kubectl label namespace %s status=readytofix scenario=%s", *namespace, scenario_name) )
+    silent_exec( fmt.Sprintf("kubectl label namespace %s status=readytofix scenario=%d", *namespace, scenario) )
 
     return CHECK_SCRIPT, INSTRUCTIONS, CHALLENGE_TYPE
 }
@@ -544,11 +547,11 @@ func menu_loop() {
 }
 
 func loop_check(check_script string, instructions string, challenge_type string, scenario int) {
-    scenarioName := fmt.Sprintf("scenario%d", scenario)
+    scenario_name := fmt.Sprintf("scenario%d", scenario)
 
     if check_script == "" {
         fmt.Printf("---- %s[%s]%s NO Cluster check script - choose new scenario when you want to move on\n",
-                   colour_me_yellow, scenarioName, colour_me_normal)
+                   colour_me_yellow, scenario_name, colour_me_normal)
         return
     }
 
@@ -570,14 +573,14 @@ func loop_check(check_script string, instructions string, challenge_type string,
         }
 
         sleep(CHECK_FIXED_SLEEP_SECS, 
-	      fmt.Sprintf("\n%s[%s]%s - %s%s%s",
-	                  colour_me_yellow, scenarioName, colour_me_normal,
-	                  colour_me_red, prompt, colour_me_normal) )
+	      fmt.Sprintf("\n%s[%s]/%d%s - %s%s%s",
+	          colour_me_yellow, scenario_name, loop_num, colour_me_normal,
+	          colour_me_red, prompt, colour_me_normal) )
 
         _, err_code := exec_pipe(check_script)
         if err_code == 0 {
             well_done := fmt.Sprintf("\n---- %s[%s]%s %sWELL DONE !!!!%s - The scenario appears to be fixed !!!!\n",
-                             colour_me_yellow, scenarioName, colour_me_normal,
+                             colour_me_yellow, scenario_name, colour_me_normal,
                              colour_me_green, colour_me_normal)
             fmt.Println(well_done)
             return
@@ -587,9 +590,9 @@ func loop_check(check_script string, instructions string, challenge_type string,
 
 func sleep(secs int, msg string) {
     if msg != "" {
-        fmt.Printf("%s - Sleeping <%d> secs ...", msg, secs)
+        fmt.Printf("%s - Sleep %ds ...", msg, secs)
     } else {
-        fmt.Printf("Sleeping <%d> secs ... ", secs)
+        fmt.Printf("Sleep %ds ... ", secs)
     }
 
     delay := time.Duration(secs) * 1000 * time.Millisecond
@@ -680,7 +683,6 @@ func main() {
     if *localServer {
         *serverUrl = "http://127.0.0.1:9000"
     }
-
 
     kubeconfig = os.Getenv("KUBECONFIG")
     debug("INFO env[kubeconfig]=" + kubeconfig + "\n")
