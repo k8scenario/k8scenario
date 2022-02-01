@@ -409,6 +409,7 @@ func install_scenario_zip(zipFile string, scenario int) (string, string, string)
     CHECK_SCRIPT := ""
     FUNCTIONS_RC := ""
     EXPORT_NAMESPACE := "export NS=" + *namespace + "\n"
+    EXPORT_NOMARK := "export NO_MARK_SCENARIO=DONT_MARK_NAMESPACE\n"
 
     // empty array of strings:
     YAML_FILES := []string{}
@@ -446,8 +447,8 @@ func install_scenario_zip(zipFile string, scenario int) (string, string, string)
     }
 
     CHALLENGE_TYPE = strings.TrimSuffix( CHALLENGE_TYPE, "\n")
-    apply_setup_script(SETUP_SCRIPT, EXPORT_NAMESPACE + FUNCTIONS_RC + "\n", "--pre-yaml")
-    CHECK_SCRIPT = write_check_script(CHECK_SCRIPT, EXPORT_NAMESPACE + FUNCTIONS_RC + "\n")
+    apply_setup_script(scenario, SETUP_SCRIPT, EXPORT_NAMESPACE + FUNCTIONS_RC + "\n", "--pre-yaml")
+    CHECK_SCRIPT = write_check_script(CHECK_SCRIPT, EXPORT_NAMESPACE + EXPORT_NOMARK + FUNCTIONS_RC + "\n")
 
     for file_idx := 0 ; file_idx < len(YAML_FILES); file_idx++ {
         filename := YAML_FILE_NAMES[file_idx]
