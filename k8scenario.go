@@ -8,7 +8,7 @@ import (
     "log"
     "io/ioutil"
     "io"
-    "bufio"
+    "bufio"   // for reading stdin
 
     "os"
     "os/exec"
@@ -28,7 +28,7 @@ import (
 )
 
 const (
-    __DATE_VERSION__="2020-Jan-18_10h50m59"
+    __DATE_VERSION__="2020-Sep-05_00h15m52"
     __K8SCENARIO_VERSION__="k8scenario.public"
 
     // Default url used to download scenarii
@@ -66,6 +66,9 @@ var (
     incluster = false
     verbose   = false
     dbg       = false
+    // If set to true:
+    //   Once scenario is solved, don't delete namespace until enter has been pressed:
+    wait_label= false
 
     namespace = flag.String("namespace", "k8scenario", "The namespace to use (all)")
     scenario  = flag.Int("scenario", 1, "k8s scenario to run (default: 1)")
@@ -605,11 +608,35 @@ func showVersion() {
     fmt.Println("Version: " + __K8SCENARIO_VERSION__ + "/" + __DATE_VERSION__)
 }
 
+func press(prompt string) {
+    if prompt != "" {
+        fmt.Print(prompt)
+    }
+    reader := bufio.NewReader(os.Stdin)
+    fmt.Print("Press <enter> to continue ...")
+    _, _ = reader.ReadString('\n')
+}
+
+func wait_on_label() {
+    op      := ""
+
+    for true {
+        op, _ = silent_exec( fmt.Sprintf("kubectl get namespace %s --no-headers --show-labels", *namespace) )
+	fmt.Print("wait_on_label: " + op)
+	if strings.Contains(op, "regtest=ok") {
+	    return;
+        }
+        sleep(CHECK_FIXED_SLEEP_SECS, "wait_on_label")
+    }
+}
+
 func main() {
     flag.BoolVar(&version, "version",  false, "Show version string (false)")
     flag.BoolVar(&menu,    "menu",     false, "Menu to select a scenario")
     flag.BoolVar(&verbose, "verbose ", false, "Verbose mode")
     flag.BoolVar(&dbg,     "debug",    false, "Debug mode")
+    //flag.BoolVar(&wait_enter, "wait",  false, "Wait on enter after scenario OK")
+    flag.BoolVar(&wait_label, "wait",  false, "Wait on namespace label regtest=ok after scenario OK")
 
     flag.Parse()
 
@@ -640,6 +667,10 @@ func main() {
         check_script, instructions, challenge_type := install_scenario_zip(*zipFile, *scenario)
 
         loop_check(check_script, instructions, challenge_type, *scenario)
+        if wait_label {
+            wait_on_label()
+            //press("")
+        }
         os.Exit(0)
     }
 
@@ -686,9 +717,9 @@ func main() {
         sleep(INCLUSTER_SLEEP_SECS, "in cluster")
     }
 
-
     os.Exit(0)
 }
+
 
 
 
